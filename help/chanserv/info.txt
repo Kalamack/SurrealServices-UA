@@ -1,0 +1,5 @@
+%BChanServ INFO%B lists information about the named registered channel,
+including its founder, time of registration, last time used,
+description, and mode lock, if any.
+
+Syntax: %BINFO%B %U#channel%U

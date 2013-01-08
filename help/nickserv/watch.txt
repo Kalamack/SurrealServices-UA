@@ -1,0 +1,17 @@
+%BNickServ WATCH%B allows you to view and modify your NickServ watch list.
+You will be notified when a user on your watch list connects to IRC.
+
+Syntax: %BWATCH ADD%B <%Unick/mask%U>
+        %BWATCH DEL%B <%Unick/mask%U>
+        %BWATCH LIST%B
+
+The %BWATCH ADD%B command adds the specified nick or hostmask to your
+watch list.
+
+The %BWATCH DEL%B command removes the specified nick or hostmask from
+your watch list.
+
+The %BWATCH LIST%B command displays your watch list.
+
+%BCAVEATS:%B You cannot use wildcards in nicks, and you cannot have more
+than 128 watch entries.

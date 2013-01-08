@@ -1,0 +1,28 @@
+Commands:
+  !up            Gives you the highest channel status you are allowed.
+  !down          Removes all channel status.
+  !invite        Invites a user to the channel.
+  !ban           Bans a user or mask from the channel.
+  !banlist       Lists all bans in the channel, suitable for using the 
+                     numbers with !unban
+  !qban          Places a quiet ban on the user in the channel.
+  !nban          Places a nick-change ban on the user in the channel.
+  !kick          Kicks a user from the channel.
+  !kickban       Kicks and bans a user from the channel.
+  !kickmask      Kicks users matching a mask from the channel.
+  !kickbanmask   Kicks and bans users matching a mask from the channel.
+  !unban         Unbans a user from the channel.
+  !calc          Performs a mathematical calculation.
+  !seen          Shows how long it has been since a user identified to a nick.
+  !dice          Rolls dice, !d 2d4 rolls 2 4 sided dice.
+  !mode          Sets modes in a channel.
+  !resync        Gives everyone the precise chan-ops they're supposed to have.
+  !topic         Sets the topic of the channel.
+
+  !abbreviations Shows all short command aliases.
+  !abbrev
+  !abbrevs
+
+Commands to set channel status:
+  !voice    !halfop    !op    !admin
+  !devoice  !dehalfop  !deop  !deadmin

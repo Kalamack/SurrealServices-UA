@@ -1,0 +1,25 @@
+%BNickServ SET%B allows you to change the various settings associated
+with your nickname.  The following settings are available:
+
+  PROTECT   Protect your nick from unauthorized use.
+  PASSWORD  Change your password.
+  EMAIL     Change your email address.
+  HIDEMAIL  Hide your email address from other users.
+  NOMEMO    Block memos sent to this nick.
+  NOACC     Prevent this nick from being added to channel access lists.
+  NEVEROP   Prevent ChanServ from automatically granting you channel
+              operator status.
+  AUTH      Prevent others from adding you to channel access lists 
+              without authorization from you.
+  VACATION  Extend the time your nick will last before expiring.
+  ROOT      Change the root nick for your nickgroup.
+  UMODE     Set user modes to be added or removed upon identifying
+
+Oper only flags:
+  HOLD         Prevent nickname from expiring
+  FREEZE       Suspend access to this nickname
+  EMAILREG     If enabled, forces user to revalidate their email address.
+               If disabled, force validates their email address.
+
+For more information on a specific option, type:
+%B/msg nickserv help set <option>%B

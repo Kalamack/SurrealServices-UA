@@ -1,0 +1,21 @@
+%BChanServ VOP%B maintains the auto-voice list for a channel.
+Users on this list are given voice status upon joining
+the channel.
+
+Syntax: %BVOP%B %U#channel%U %BADD%B <%Unick%U>
+        %BVOP%B %U#channel%U %BDEL%B <%Unick%U>
+        %BVOP%B %U#channel%U %BLIST%B [%Umask%U]
+        %BVOP%B %U#channel%U %BWIPE%B
+
+The %BVOP ADD%B command adds the given nickname to the list.
+If the target has SET AUTH on, a demotions is handled by
+deleting the target's access, so they may accept the demotion,
+or no access at all.
+
+The %BVOP DEL%B command removes the given nick from the list.
+
+The %BVOP LIST%B command displays the list.
+if a mask is given, only those entries matching the mask are
+displayed.
+
+The %BVOP WIPE%B command removes all entries from the list.

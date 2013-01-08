@@ -1,0 +1,5 @@
+%BChanServ ADMIN%B allows you to set channel-admin mode on
+either yourself or on other people in a channel.
+
+Syntax: %BADMIN%B %U#channel%U [%Unick%U [%Unick%U ...]]
+        %BADMIN%B %U#channel%U [%Uchannel%U [%Uchannel%U]]

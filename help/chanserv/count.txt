@@ -1,0 +1,4 @@
+%BChanServ COUNT%B displays the number of users in each
+channel access list.
+
+Syntax: %BCOUNT%B %U#channel%U

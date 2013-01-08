@@ -1,0 +1,5 @@
+%BNickServ CHGROOT%B sets the "root" nickname for your
+nickname group. The root nick is the one that will appear
+in various displays as your main nick.
+ 
+Syntax: %BCHGROOT%B [%Uoldroot%U] %Unewroot%U

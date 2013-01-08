@@ -1,0 +1,7 @@
+%BNickServ LIST%B is used by opers to find registered nicks that
+match wildcard patterns.
+
+Syntax: %BLIST%B %Umask%U
+
+Masks are quite flexible, and can be as simple as nick*! or
+ident@*host

@@ -1,0 +1,17 @@
+%BNickServ ACC%B Returns whether the user using the given
+nickname is recognized as the owner of the nickname.  The
+response has this format:
+
+    %Bnickname%B %Bacc-code%B
+
+%Bacc-code%B is one of the following:
+
+  0 - Nickname Unregistered
+  1 - Registered, Offline
+  2 - UnIdentified
+  3 - Identified via password authentication
+  4 - Identified via access list
+  5 - Forbidden Nickname
+
+Syntax: %BACC%B %Unickname%U
+

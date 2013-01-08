@@ -1,0 +1,5 @@
+%BSpamServ REHASH%B reloads the values of
+the configuration.  This does not save any
+recently set values with the %BSET%B command.
+
+Syntax: %BREHASH%B

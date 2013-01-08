@@ -1,0 +1,4 @@
+%BNickServ DROPGROUP%B allows you to delete a whole group of
+nicks/aliases
+ 
+Syntax: %BDROPGROUP%B %Unick%U <%Upassword%U>

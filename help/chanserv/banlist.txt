@@ -1,0 +1,4 @@
+%BChanServ BANLIST%B asks ChanServ for the list of bans in
+a channel.
+
+Syntax: %BBANLIST%B %U#channel%U

@@ -1,0 +1,7 @@
+%BChanServ SET HOLD%B sets whether the given channel will
+expire.  Setting this to ON prevents the channel from
+expiring.
+
+Syntax: %BSET%B %U#channel%U %BHOLD%B <%UON/OFF%U>
+
+Requires SERVOP.

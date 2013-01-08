@@ -1,0 +1,30 @@
+Syntax: %BAJOIN%B [%Unick%U] %BADD%B <%Uchannel%U>
+        %BAJOIN%B [%Unick%U] %BDEL%B <%Uchannel|entry-nr|list%U>
+        %BAJOIN%B [%Unick%U] %BLIST%B [%Umask|list%U]
+        %BAJOIN%B [%Unick%U] %BJOIN%B
+        %BAJOIN%B [%Unick%U] %BCLEAR%B
+        %BAJOIN%B [%Unick%U] %BWIPE%B
+
+Maintains the %BAutoJoin list%B for nick group.
+If a user identifies to his nickname, he will
+automatically join the listed channels.
+
+The %BAJOIN ADD%B command adds the given channel
+to the AutoJoin list.
+
+The %BAJOIN DEL%B command removes the given channel
+from the AutoJoin list. If a list of entry numbers is given,
+those entries are deleted.
+
+The %BAJOIN LIST%B command displays the AutoJoin list.
+If a wildcard mask is given, only those entries matching the
+mask are displayed. If a list of entry numbers is given, only
+those entries are shown.
+
+The %BAJOIN JOIN%B attempts to join you to all of the channels
+in your list.
+NOTE: %BAJOIN%B does not [attempt to] bypass bans, chmode +i,
+or any other such thing.
+
+The %BAJOIN WIPE%B command clears all entries on the
+AutoJoin list.

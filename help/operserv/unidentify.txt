@@ -1,0 +1,4 @@
+%BOperServ UNIDENTIFY%B logs a user out of any nicks they are
+identified to.
+
+Syntax: %BUNIDENTIFY%B %Unick%U

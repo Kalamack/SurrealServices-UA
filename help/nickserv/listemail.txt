@@ -1,0 +1,4 @@
+%BNickServ LISTEMAIL%B is used by opers to find registered nicks
+whose email addresses match a specified pattern.
+
+Syntax: %BLISTEMAIL%B %Uemail@address.tld%U 

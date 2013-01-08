@@ -1,0 +1,42 @@
+	SrSv nee SurrealServices is currently being developed
+with UnrealIRCd 3.2.x in mind. As such many assumptions may be
+in place even if we did not intend there to be. This will
+probably make porting difficult, if not impossible. We, the
+coders, would like to apologize in advance for this fact.
+
+	This is an unfortunate consequence of only having
+UnrealIRCd at our immediate disposal. We would welcome patches
+to clean up such difficulties, as long as they remain
+sufficiently clean/readable and do not introduce assumptions
+incompatible with other ircds that SrSv is attempting to work
+with.
+
+	Among the assumptions to be noted are that all of your
+ircds are properly configured and that the configurations are
+uniform throughout your irc-network. We believe that this is a
+necessary aspect of a properly maintained network, and as such
+should not be an undue burden.
+
+	Definition of 'unsyncserver': This means a server that is
+not 100% conformant to the UnrealIRCd Server Protocol. Basically
+most services servers (NeoStats, denora, janus, etc) don't send an
+EOS at the end of their netburst. It seems that Unreal is perfectly
+happy with this, but SrSv isn't. When we don't receive an
+End-of-Sync message, we don't know if they're done announcing
+everything, and thus whether to start re-mangling channel modes.
+
+	Further of note is that SrSv does not have a full
+capability list for ircds and such may be necessary for
+portability (if your ircd does not support things like WATCH,
+SILENCE, etc).
+
+	IRC Networks known to be using SrSv as of this date
+(20100506):
+	irc.surrealchat.net (duh)
+	irc.CrystalNET.eu
+	irc.lucidchat.net
+	irc.pokebeach.com
+
+	We would appreciate any success reports from other networks,
+contact us on irc.surrealchat.net #dev.lounge or via email:
+tabris@surrealchat.net or saturn@surrealchat.net

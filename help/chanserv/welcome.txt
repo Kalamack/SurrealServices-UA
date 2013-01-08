@@ -1,0 +1,13 @@
+%BChanServ WELCOME%B allows you to maintain the channel welcome
+list.  The contents of this list will be sent to every user who
+joins your channel.
+
+Syntax: %BWELCOME%B %U#channel%U %BADD%B <%Umessage%U>
+        %BWELCOME%B %U#channel%U %BDEL%B <%Unumber%U>
+        %BWELCOME%B %U#channel%U %BLIST%B
+
+The %BWELCOME ADD%B command adds a message to the welcome list.
+
+The %BWELCOME DEL%B command removes a message from the list.
+
+The %BWELCOME LIST%B command displays the contents of the list.

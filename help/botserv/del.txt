@@ -1,0 +1,3 @@
+%BBotServ DEL%B allows you to delete a services bot.
+
+Syntax: %BDEL%B %Ubot%U

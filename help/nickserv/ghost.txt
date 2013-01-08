@@ -1,0 +1,15 @@
+%BNickServ GHOST%B terminates a "ghost" IRC session using
+your nick.  A "ghost" session is one which is not actually
+connected, but which the IRC server believes is still online.
+Typically, this happens when your Internet connection goes down
+while you're on IRC.
+
+Syntax: %BGHOST%B %Unick%U [%Upassword%U]
+#
+#In order to use the GHOST command for a nick, your current
+#address as shown in /WHOIS must be on that nick's access
+#list, or you must supply the correct password for the
+#nickname.
+#
+#This command also identifies you to your nick if you are not
+#already.

@@ -1,0 +1,3 @@
+%BMemoServ SEND%B allows you to send a memo to a nick or channel.
+
+Syntax: %BSEND%B <%Unick/#chan%U> <%Umessage%U>

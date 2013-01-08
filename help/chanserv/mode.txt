@@ -1,0 +1,8 @@
+%BChanServ MODE%B does everything that the regular IRCd MODE
+command does, but allows you to do so if you're not currently
+opped in the channel.
+
+Syntax: %BMODE%B %U#channel%U <%U+modes-modes%U> [%Uparams%U]
+
+Example: MODE #Support +tn
+         MODE #Support +ootn hAtbLaDe XYZ

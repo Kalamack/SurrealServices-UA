@@ -1,0 +1,15 @@
+%BNickServ SET PROTECT%B allows you to control the extent to which
+your nick will be protected from unauthorized use.
+
+Syntax: %BSET%B [%Unick%U] %BPROTECT%B <%UOFF|ON|HIGH|KILL%U>
+
+With PROTECT OFF, anyone may use your nick without authorization.
+
+With PROTECT ON, users of your nick must identify within
+one minute or their nick will be changed. This is the default.
+
+With PROTECT HIGH, users must identify before using your nick
+or their nick will be changed immediately.
+
+With PROTECT KILL, users must identify before using your nick
+or they will be disconnected from IRC.

@@ -1,0 +1,3 @@
+%BOperServ STAFF%B lists all Services Operators.
+
+Syntax: %BSTAFF%B

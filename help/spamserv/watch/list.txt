@@ -1,0 +1,4 @@
+%BSpamServ WATCH LIST%B lists the currently watched
+channels.
+
+Syntax: %BWATCH LIST%B

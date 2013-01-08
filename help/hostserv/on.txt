@@ -1,0 +1,5 @@
+%BHostServ ON%B activates the vHost currently assigned to the
+nick in use. When you use this command any user who performs a
+whois on you will see the vHost instead of your real host.
+ 
+Syntax: %BON

@@ -1,0 +1,6 @@
+%BNickServ EMAILREG%B is used for nick registrations when email
+verification is enabled.
+
+More information on its use should be in the email you receive.
+
+Syntax: %BEMAILREG%B %Unickname%U <%Ucode%U>

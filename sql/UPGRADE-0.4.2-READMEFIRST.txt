@@ -1,0 +1,17 @@
+0.4.2 is the first time in a long time that we are changing the database
+format that requires a script to run.
+
+This version has both an updatedb-0.4.2.sql file, and an
+upgrade-0.4.2.pl script. The order you run this in does not matter.
+
+fwiw, for now, the upgrade script is optional, but recommended for
+security reasons. For now, 0.4.2 will remain compatible with the
+non-hashed passwords, but this may be removed at a later date.
+
+This is a major change in how passwords will work. SENDPASS is being
+changed. If the password is hashed, it will not send the actual password
+but an authentication code that will allow the user to identify and
+change their password. Additionally, GETPASS has been removed, as it
+will no longer work.
+
+Please notify your staff. Notify your users too.

@@ -1,0 +1,4 @@
+%BChanServ SET DESC%B sets the description for the channel,
+which can be seen with the %BChanServ INFO%B command.
+ 
+Syntax: %BSET%B %U#channel%U %BDESC%B <%Udescription%U>

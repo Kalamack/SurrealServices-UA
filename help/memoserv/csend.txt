@@ -1,0 +1,6 @@
+%BMemoServ CSEND%B allows you to send a channel memo
+to users of a certain rank or higher.
+
+Syntax: %BCSEND%B %U#channel%U <%Urank%U> <%Umessage%U>
+
+Valid ranks include: UOP, VOP, HOP, AOP, SOP, CF, FOUNDER

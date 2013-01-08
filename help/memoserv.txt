@@ -1,0 +1,15 @@
+%BMemoServ%B is a utility allowing IRC users to send short
+messages to other IRC users, whether they are online at
+the time or not. Both sender and recipient must have
+their nicknames registered with %BNickServ%B in order to
+send a memo.
+
+Commands:
+  SEND    Send a memo to a nick/channel
+  CSEND   Send a channel memo to higher access levels
+  LIST    List all of your memos
+  READ    Read a memo
+  DEL     Delete a memo
+  IGNORE  Block memos coming from a specific person
+
+For more help on a specific command, type: %B/ms help%B %Ucommand%U

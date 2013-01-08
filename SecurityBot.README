@@ -1,0 +1,24 @@
+SecurityBot is an all-purpose Security Maintenance System.
+
+It has TOR banning, DroneBL-Blacklist Banning, TKL (G:line and GZ:line)
+management, and a couple other more random features.
+
+The use of this system is at this time quite finicky, and is not
+recommended unless you have read through the SecurityBot code or talked
+to the coders. It was written for use on SurrealChat.net, and may not
+meet the 'ease of use' standard of the rest of SurrealServices.
+
+- TOR is more or less easy to use, just enable it in the config, and it
+should work. 
+
+- DroneBL support requires permission from dronebl.org to
+download a copy of their blacklist.
+
+Enabling this option and not running the scripts/setting up the
+table will cause runtime errors. So don't do that. This is no
+different from the country system.
+
+- TKL handling is very similar to /stats G on Unreal, with some slight
+changes. The full documentation is available via 
+
+/msg SecurityBot help TKL

@@ -1,0 +1,8 @@
+%BMemoServ READ%B displays a specified memo that you have
+received.
+
+Syntax: %BREAD <%Unum|LAST%U>
+
+Sends you the text of memo number %Bnum%B, or of the last
+(i.e. most recently received) memo if LAST is given
+instead of a number.

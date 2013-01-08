@@ -1,0 +1,7 @@
+%BAdminServ%B allows services administrators or higher
+to list, modify, or look up users on the staff lists.
+
+Commands:
+  SVSOP    Modify Services Operator
+  WHOIS    Check rank of an individual
+  STAFF    List all Services Ops

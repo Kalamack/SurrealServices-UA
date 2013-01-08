@@ -1,0 +1,11 @@
+%BChanServ RESYNC%B Synchronizes users in the channel with the
+userlist. This means that if the user can normally get ops,
+ChanServ makes sure the user has ops. Otherwise, if the user
+normally gets voice, ChanServ makes sure the user has voice but
+not ops. Otherwise, ChanServ makes sure the user has neither
+voice nor ops.
+
+This is actually implemented via CS CLEAR <#chan> OPS, and a
+CS UP #chan <all users>
+
+Syntax: %BRESYNC%B %U#channel%U [%U#channel%U [%U#channel%U]]

@@ -1,0 +1,9 @@
+%BHostServ%B allows IRC Operators to change vhosts and add auto
+hosting for a registered nick
+
+%BCommands:
+  SETHOST  Add or change vHost for a registered nick.
+  DEL      Delete vHost from a nick
+  LIST     Show nick list of vHosts
+  ON       Activate your vHost
+  OFF      Unset umode xt to disable your vHost.

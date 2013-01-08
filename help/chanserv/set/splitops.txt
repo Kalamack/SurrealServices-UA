@@ -1,0 +1,7 @@
+%BChanServ SET SPLITOPS%B allows users that gain ops from
+initial join or  a netsplit to keep their ops.  This can
+avoid mass-deops in a channel where not everyone is
+identified to NickServ, but may make channel takeovers
+easier.
+
+Syntax: %BSET%B %U#channel%U %BSPLITOPS%B <%UON/OFF%U>

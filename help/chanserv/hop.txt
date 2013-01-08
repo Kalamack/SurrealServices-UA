@@ -1,0 +1,21 @@
+%BChanServ HOP%B maintains the auto-hop list for a channel.
+Users on this list are given half-op status upon joining
+the channel.
+
+Syntax: %BHOP%B %U#channel%U %BADD%B <%Unick%U>
+        %BHOP%B %U#channel%U %BDEL%B <%Unick%U>
+        %BHOP%B %U#channel%U %BLIST%B [%Umask%U]
+        %BHOP%B %U#channel%U %BWIPE%B
+
+The %BHOP ADD%B command adds the given nickname to the list.
+If the target has SET AUTH on, a demotions is handled by
+deleting the target's access, so they may accept the demotion,
+or no access at all.
+
+The %BHOP DEL%B command removes the given nick from the list.
+
+The %BHOP LIST%B command displays the list.
+if a mask is given, only those entries matching the mask are
+displayed.
+
+The %BHOP WIPE%B command removes all entries from the list.

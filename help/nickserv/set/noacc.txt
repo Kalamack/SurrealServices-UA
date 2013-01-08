@@ -1,0 +1,4 @@
+%BNickServ SET NOACC%B Prevents other people from adding
+you to channel access lists.
+ 
+Syntax: %BSET%B [%Unick%U] %BNOACC%B <%UON|OFF%U>

@@ -1,0 +1,5 @@
+Syntax: UNSEND nick
+
+Retrieves the latest memo you sent to
+the person, and deletes it. This feature
+currently only works for nicks, not channels.

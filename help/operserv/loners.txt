@@ -1,0 +1,19 @@
+%BOperServ LONERS%B gets the list of users in zero channels and
+optionally retrieves %BUINFO%B, sends a %BMSG%B, %BFJOIN%B,
+%BKILL%B, or %BKLINE%B. if you specify %BNOID%B it will only act on
+users that have not identified to any nicks.
+
+Syntax: %BLONERS%B [%ULIST|UINFO|MSG|FJOIN|KILL|KLINE%U] [%UNOTID%U] [%Umsg/reason%U]
+
+If no command is specified, defaults to LIST.
+
+    LIST    -    Lists all users in zero channels
+    UINFO   -    Retrieves UINFO for all users in zero channels. %BWARNING%B May flood you off.
+    MSG     -    Sends a NOTICE from OperServ to the users. Message is not optional. (DUH)
+    FJOIN   -    Force-Join to a channel. Will obviously make them no longer be in zero channels.
+    KILL    -    Kill the users. Reason is optional, but recommended.
+    KLINE   -    G:Line the users. Reason is optional, but recommended.
+    
+    NOTID   -    Only matches if the users are not identified to nicks.
+                 May be used with any of the above.
+                 Also aliased to NOIDENTIFY and NOID.

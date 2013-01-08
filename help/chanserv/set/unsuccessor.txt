@@ -1,0 +1,7 @@
+%BChanServ SET UNSUCCESSOR%B Removes the successor of a
+channel.
+ 
+Syntax: %BSET%B %U#channel%U %BUNSUCCESSOR%B
+
+For more information about successors, type:
+%B/cs help set successor%B

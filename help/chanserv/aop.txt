@@ -1,0 +1,21 @@
+%BChanServ AOP%B maintains the auto-op list for a channel.
+Users on this list are given op status upon joining
+the channel.
+
+Syntax: %BAOP%B %U#channel%U %BADD%B <%Unick%U>
+        %BAOP%B %U#channel%U %BDEL%B <%Unick%U>
+        %BAOP%B %U#channel%U %BLIST%B [%Umask%U]
+        %BAOP%B %U#channel%U %BWIPE%B
+
+The %BAOP ADD%B command adds the given nickname to the list.
+If the target has SET AUTH on, a demotions is handled by
+deleting the target's access, so they may accept the demotion,
+or no access at all.
+
+The %BAOP DEL%B command removes the given nick from the list.
+
+The %BAOP LIST%B command displays the list.
+if a mask is given, only those entries matching the mask are
+displayed.
+
+The %BAOP WIPE%B command removes all entries from the list.

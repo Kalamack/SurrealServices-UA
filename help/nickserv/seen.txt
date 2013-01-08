@@ -1,0 +1,4 @@
+%BNickServ SEEN%B displays how long it has been since a user identified
+to a nick.
+
+Syntax: %BSEEN%B %Unick%U

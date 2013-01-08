@@ -1,0 +1,11 @@
+%BNickServ SET EMAIL%B Associates the given E-mail address with
+the nick. This address will be displayed whenever someone
+requests information on the nick with the INFO command.
+
+Syntax: %BSET%B [%Unick%U] %BEMAIL%B <%Uaddress%U>
+
+The %BHIDEMAIL%B command will hide your email from INFO
+requests.
+
+If %BHIDEMAIL%B is given, your email will no longer be hidden
+and will be visible to all in INFO requests. 

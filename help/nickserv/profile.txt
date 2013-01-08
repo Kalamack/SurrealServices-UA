@@ -1,0 +1,25 @@
+%BNickServ PROFILE%B stores information about you for others
+to read.
+
+Syntax: %BPROFILE READ%B <%Unick%U> [%Unick%U ...]
+        %BPROFILE%B [%Unick%U] %BSET%B %Uitem%U %Udata%U
+        %BPROFILE%B [%Unick%U] %BDEL%B %Uitem%U
+        %BPROFILE%B [%Unick%U] %BWIPE%B
+
+The %BPROFILE READ%B command displays PROFILE data for you
+or for a list of registered nicks.
+
+The %BPROFILE SET%B command adds an entry to your profile.
+
+%BExamples:%B
+  /ns profile set aim blahblah123
+  /ns profile set myspace http://www.myspace.com/you
+  /ns profile set birthday June 9, 1969
+  /ns profile set mood sassy
+
+%BWARNING%B: Don't put private information in your profile.
+There are no restrictions on who can read it.
+
+The %BPROFILE DEL%B command removes an entry from your profile.
+
+The %BPROFILE WIPE%B command deletes your entire profile.

@@ -1,0 +1,25 @@
+You will need to have all of these installed:
+
+* Perl 5.8 and standard modules. (threads no longer required)
+	NOTE: Many linux distros place Perl's standard modules in a separate
+	package from Perl itself.
+* MySQL 5.0 or 5.1. 5.2 is not well tested; 5.3 and up are not
+supported.
+* Event module from CPAN
+* Date::Parse module from CPAN
+Both the Event and Date::Parse modules should be available
+in your favourite distro.
+
+1. Create a MySQL database and user for services to use. Ask
+your system administrator or see the MySQL manual for instructions.
+
+2. Make sure your IRCd is configured correctly.
+
+3. Type: cp -a config-example config
+Then edit the config files for your network.
+
+4. Type: ./db-setup.pl
+
+5. Type: ./services.pl
+
+6. Register your nick, then type: ./addroot.pl <yournick>

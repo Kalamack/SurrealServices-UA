@@ -1,0 +1,10 @@
+%BNickServ GIDENTIFY%B is similar to the IDENTIFY command. The
+difference is GIDENITFY changes your nickname while
+identifying, and will use GHOST if the target nick is
+currently online.
+
+Syntax: %BGIDENTIFY%B %Unick%U <%Upassword%U>
+
+Examples:
+    GIDENTIFY Soulja soulseeker
+    GID bob thebuilder

@@ -1,0 +1,10 @@
+%BAdminServ SVSOP%B modifies the rank of a user and lists 
+the services operators.
+ 
+Syntax: %BSVSOP%B <%UADD|DEL|LIST%U> %Unick%U <%UH|O|A|R%U>
+ 
+Services Access:
+  H       HelpOp
+  O       [Services] Operator
+  A       [Services] Admin
+  R       Services Root

@@ -1,0 +1,12 @@
+%BChanServ CLOSE%B clears all users, bans *!*@*, and
+closes the channel down permanently. This process is not
+currently reversible, the channel must be dropped to be
+re-opened.
+
+The founder is unchanged, and the oper who closes the
+channel becomes successor, in case the founder nick is
+dropped.
+
+Syntax: %BCLOSE%B %U#channel%U <%Ureason%U>
+
+Requires SERVOP.

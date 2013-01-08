@@ -1,0 +1,274 @@
+Index: modules/country.pm
+===================================================================
+--- modules/country.pm	(revision 2760)
++++ modules/country.pm	(working copy)
+@@ -37,11 +37,11 @@ our ($get_ip_country, $get_ip_country_at
+ 
+ proc_init {
+ 	$get_ip_country = $dbh->prepare_cached("SELECT country FROM country WHERE
+-		? BETWEEN low AND high");
++		MBRCONTAINS(ip_poly, POINTFROMWKB(POINT(?, 0)))");
+ 	$get_ip_country_aton = $dbh->prepare_cached("SELECT country FROM country WHERE
+-		INET_ATON(?) BETWEEN low AND high");
++		MBRCONTAINS(ip_poly, POINTFROMWKB(POINT(INET_ATON(?), 0)))");
+ 	$get_user_country = $dbh->prepare_cached("SELECT country FROM country, user WHERE
+-		user.ip BETWEEN low AND high and user.id=?");
++		MBRCONTAINS(ip_poly, POINTFROMWKB(POINT(user.ip, 0))) and user.id=?");
+ };
+ 
+ sub get_ip_country($) {
+Index: utils/country-table.pl
+===================================================================
+--- utils/country-table.pl	(revision 2785)
++++ utils/country-table.pl	(working copy)
+@@ -52,6 +52,8 @@ sub main() {
+ 	newTable($dbh);
+ 	print "Inserting data...     ";
+ 	loadData($dbh);
++	print "Converting data...\n";
++	convert($dbh);
+ 	print "Removing old table...\n";
+ 	cleanup($dbh);
+ 	$dbh->disconnect();
+@@ -124,7 +126,7 @@ sub newTable($) {
+ 
+ 	$dbh->do("DROP TABLE IF EXISTS newcountry");
+ 	$dbh->do(
+-	"CREATE TABLE `newcountry` (
++	"CREATE TABLE `tmpcountry` (
+ 	  `low` int unsigned NOT NULL default 0,
+ 	  `high` int unsigned NOT NULL default 0,
+ 	  `country` char(2) NOT NULL default '-',
+@@ -136,7 +138,7 @@ sub newTable($) {
+ sub loadData($) {
+ 	my ($dbh) = @_;
+ 
+-	my $add_entry = $dbh->prepare("INSERT INTO newcountry SET low=INET_ATON(?), high=INET_ATON(?), country=?");
++	my $add_entry = $dbh->prepare("INSERT INTO tmpcountry SET low=INET_ATON(?), high=INET_ATON(?), country=?");
+ 
+ 	$| = 1;
+ 	my $unpackFile = PREFIX."/data/$unpackname";
+@@ -145,8 +147,8 @@ sub loadData($) {
+ 	my ($i, @entries);
+ 
+ 	open ((my $COUNTRYTABLE), '<', $unpackFile);
+-	$dbh->do("ALTER TABLE `newcountry` DISABLE KEYS");
+-	$dbh->do("LOCK TABLES newcountry WRITE");
++	$dbh->do("ALTER TABLE `tmpcountry` DISABLE KEYS");
++	$dbh->do("LOCK TABLES tmpcountry WRITE");
+ 	while(my $x = <$COUNTRYTABLE>) {
+ 		if($i == 0 or !($i % $div)) {
+ 			printf("\b\b\b\b%3d%", ($i/$lines)*100);
+@@ -158,19 +160,40 @@ sub loadData($) {
+ 		push @entries,
+ 			'(INET_ATON('.$dbh->quote($low).'),'.'INET_ATON('.$dbh->quote($high).'),'.$dbh->quote($country).')';
+ 		if (scalar(@entries) >= 100) { #1000 only gives another 10% boost for 10x as much memory
+-			$dbh->do("INSERT IGNORE INTO newcountry (low, high, country) VALUES ".join(',', @entries));
++			$dbh->do("INSERT IGNORE INTO tmpcountry (low, high, country) VALUES ".join(',', @entries));
+ 			@entries = ();
+ 		}
+ 
+ 		$i++;
+ 	}
+-	$dbh->do("INSERT IGNORE INTO newcountry (low, high, country) VALUES ".join(',', @entries)) if scalar(@entries);
++	$dbh->do("INSERT IGNORE INTO tmpcountry (low, high, country) VALUES ".join(',', @entries)) if scalar(@entries);
+ 	$dbh->do("UNLOCK TABLES");
+-	$dbh->do("ALTER TABLE `newcountry` ENABLE KEYS");
++	$dbh->do("ALTER TABLE `tmpcountry` ENABLE KEYS");
+ 	close $COUNTRYTABLE;
+ 	print "\b\b\b\bdone.\n";
+ }
+ 
++sub convert($) {
++	my ($dbh) = @_;
++	$dbh->do(
++	"CREATE TABLE newcountry (
++	  id int unsigned not null AUTO_INCREMENT,
++	  ip_poly polygon not null,
++	  low int unsigned not null,
++	  high int unsigned not null,
++	  country char(2) not null default '-',
++	  PRIMARY KEY (id),
++	  SPATIAL INDEX (ip_poly)
++	);"
++	);
++	$dbh->do(
++	"INSERT INTO newcountry (low,high,country,ip_poly)
++		SELECT low, high, country,
++		GEOMFROMWKB(POLYGON(LINESTRING( POINT(low, -1), POINT(high, -1),
++		POINT(high, 1), POINT(low, 1), POINT(low, -1)))) FROM tmpcountry;"
++	);
++}
++
+ sub cleanup() {
+ 	my ($dbh) = @_;
+ 
+Index: utils/country-table2.pl
+===================================================================
+--- utils/country-table2.pl	(revision 2785)
++++ utils/country-table2.pl	(working copy)
+@@ -58,6 +58,9 @@ sub main() {
+ 	newTable($dbh);
+ 	print "Inserting data...     ";
+ 	loadData($dbh);
++	print "Converting data...\n";
++	convert($dbh);
++	print "Performing cleanup...\n";
+ 	cleanup($dbh);
+ 	$dbh->disconnect();
+ 	print "Country table update complete.\n";
+@@ -124,7 +127,7 @@ sub newTable($) {
+ 
+ 	$dbh->do("DROP TABLE IF EXISTS newcountry");
+ 	$dbh->do(
+-	"CREATE TABLE `newcountry` (
++	"CREATE TEMPORARY TABLE `tmpcountry` (
+ 	  `low` int unsigned NOT NULL default 0,
+ 	  `high` int unsigned NOT NULL default 0,
+ 	  `country` char(2) NOT NULL default '-',
+@@ -142,9 +145,9 @@ sub loadData($) {
+ 	my ($i, @entries);
+ 
+ 	open ((my $COUNTRYTABLE), '<', $unpackPath);
+-	my $add_entry = $dbh->prepare("INSERT INTO newcountry SET low=INET_ATON(?), high=INET_ATON(?), country=?");
+-	$dbh->do("ALTER TABLE `newcountry` DISABLE KEYS");
+-	$dbh->do("LOCK TABLES newcountry WRITE");
++	my $add_entry = $dbh->prepare("INSERT INTO tmpcountry SET low=INET_ATON(?), high=INET_ATON(?), country=?");
++	$dbh->do("ALTER TABLE `tmpcountry` DISABLE KEYS");
++	$dbh->do("LOCK TABLES tmpcountry WRITE");
+ 	while(my $x = <$COUNTRYTABLE>) {
+ 		if($i == 0 or !($i % $div)) {
+ 			printf("\b\b\b\b%3d%", ($i/$lines)*100);
+@@ -159,18 +162,40 @@ sub loadData($) {
+ 		push @entries,
+ 			'(INET_ATON('.$dbh->quote($low).'),'.'INET_ATON('.$dbh->quote($high).'),'.$dbh->quote($country).')';
+ 		if(scalar(@entries) >= 100) { #1000 only gives another 10% boost for 10x as much memory
+-			$dbh->do("INSERT IGNORE INTO newcountry (low, high, country) VALUES ".join(',', @entries));
++			$dbh->do("INSERT IGNORE INTO tmpcountry (low, high, country) VALUES ".join(',', @entries));
+ 			@entries = ();
+ 		}
+ 
+ 		$i++;
+ 	}
+-	$dbh->do("INSERT IGNORE INTO newcountry (low, high, country) VALUES ".join(',', @entries)) if scalar(@entries);
++	$dbh->do("INSERT IGNORE INTO tmpcountry (low, high, country) VALUES ".join(',', @entries)) if scalar(@entries);
+ 	$dbh->do("UNLOCK TABLES");
+-	$dbh->do("ALTER TABLE `newcountry` ENABLE KEYS");
++	$dbh->do("ALTER TABLE `tmpcountry` ENABLE KEYS");
+ 	close $COUNTRYTABLE;
+ }
+ 
++sub convert($) {
++	my ($dbh) = @_;
++	$dbh->do(
++	"CREATE TABLE newcountry (
++	  id int unsigned not null AUTO_INCREMENT,
++	  ip_poly polygon not null,
++	  low int unsigned not null,
++	  high int unsigned not null,
++	  country char(2) not null default '-',
++	  PRIMARY KEY (`id`),
++	  UNIQUE KEY (`low`, `high`),
++	  SPATIAL INDEX (`ip_poly`)
++	);"
++	);
++	$dbh->do(
++	"INSERT INTO newcountry (low,high,country,ip_poly)
++		SELECT low, high, country,
++		GEOMFROMWKB(POLYGON(LINESTRING( POINT(low, -1), POINT(high, -1),
++		POINT(high, 1), POINT(low, 1), POINT(low, -1)))) FROM tmpcountry;"
++	);
++}
++
+ sub cleanup($) {
+ 	my ($dbh) = @_;
+ 
+Index: utils/country-table3.pl
+===================================================================
+--- utils/country-table3.pl	(revision 2785)
++++ utils/country-table3.pl	(working copy)
+@@ -58,6 +58,8 @@ sub main() {
+ 	newTable($dbh);
+ 	print "Inserting data...     ";
+ 	loadData($dbh);
++	print "Converting data...\n";
++	convert($dbh);
+ 	print "Removing old table...\n";
+ 	cleanup($dbh);
+ 	$dbh->disconnect();
+@@ -95,7 +97,7 @@ sub newTable($) {
+ 
+ 	$dbh->do("DROP TABLE IF EXISTS newcountry");
+ 	$dbh->do(
+-	"CREATE TABLE `newcountry` (
++	"CREATE TEMPORARY TABLE `tmpcountry` (
+ 	  `low` int unsigned NOT NULL default 0,
+ 	  `high` int unsigned NOT NULL default 0,
+ 	  `country` char(2) NOT NULL default '-',
+@@ -106,7 +108,7 @@ sub newTable($) {
+ 
+ sub loadData($) {
+ 	my ($dbh) = @_;
+-	my $add_entry = $dbh->prepare("INSERT IGNORE INTO newcountry SET low=?, high=?, country=?");
++	my $add_entry = $dbh->prepare("INSERT IGNORE INTO tmpcountry SET low=?, high=?, country=?");
+ 
+ 	$| = 1;
+ 	my $unpackPath = PREFIX.'/data/'.srcname;
+@@ -115,8 +117,8 @@ sub loadData($) {
+ 	my ($i, @entries);
+ 
+ 	open ((my $COUNTRYTABLE), '<', $unpackPath);
+-	$dbh->do("ALTER TABLE `newcountry` DISABLE KEYS");
+-	$dbh->do("LOCK TABLES newcountry WRITE");
++	$dbh->do("ALTER TABLE `tmpcountry` DISABLE KEYS");
++	$dbh->do("LOCK TABLES tmpcountry WRITE");
+ 	while(my $x = <$COUNTRYTABLE>) {
+ 		if($i == 0 or !($i % $div)) {
+ 			printf("\b\b\b\b%3d%", ($i/$lines)*100);
+@@ -131,21 +133,43 @@ sub loadData($) {
+ 			next if lc $country eq 'eu';
+ 			push @entries, '('.$dbh->quote($low).','.$dbh->quote($high).','.$dbh->quote($country).')';
+ 			if(scalar(@entries) >= 100) { #1000 only gives another 10% boost for 10x as much memory
+-			    $dbh->do("INSERT IGNORE INTO newcountry (low, high, country) VALUES ".join(',', @entries));
++			    $dbh->do("INSERT IGNORE INTO tmpcountry (low, high, country) VALUES ".join(',', @entries));
+ 			    @entries = ();
+ 			}
+ 		}
+ 
+ 		$i++;
+ 	}
+-	$dbh->do("INSERT IGNORE INTO newcountry (low, high, country) VALUES ".join(',', @entries)) if scalar(@entries);
++	$dbh->do("INSERT IGNORE INTO tmpcountry (low, high, country) VALUES ".join(',', @entries)) if scalar(@entries);
+ 
+ 	$dbh->do("UNLOCK TABLES");
+-	$dbh->do("ALTER TABLE `newcountry` ENABLE KEYS");
++	$dbh->do("ALTER TABLE `tmpcountry` ENABLE KEYS");
+ 	close $COUNTRYTABLE;
+ 	print "\b\b\b\bdone.\n";
+ }
+ 
++sub convert($) {
++	my ($dbh) = @_;
++	$dbh->do(
++	"CREATE TABLE newcountry (
++	  id int unsigned not null AUTO_INCREMENT,
++	  ip_poly polygon not null,
++	  low int unsigned not null,
++	  high int unsigned not null,
++	  country char(2) not null default '-',
++	  PRIMARY KEY (id),
++	  UNIQUE KEY (`low`, `high`),
++	  SPATIAL INDEX (ip_poly)
++	);"
++	);
++	$dbh->do(
++	"INSERT INTO newcountry (low,high,country,ip_poly)
++		SELECT low, high, country,
++		GEOMFROMWKB(POLYGON(LINESTRING( POINT(low, -1), POINT(high, -1),
++		POINT(high, 1), POINT(low, 1), POINT(low, -1)))) FROM tmpcountry;"
++	);
++}
++
+ sub cleanup($) {
+ 	my ($dbh) = @_;
+ 

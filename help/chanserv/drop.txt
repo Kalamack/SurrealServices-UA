@@ -1,0 +1,4 @@
+%BChanServ DROP%B unregisters the named channel.  Can only
+be used by the channel founder.
+
+Syntax: %BDROP%B %U#channel%U

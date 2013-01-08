@@ -1,0 +1,3 @@
+%BBotServ ADD%B allows you to create a new services bot.
+
+Syntax: %BADD%B <%Unick%U> <%Uident%U> <%Uvhost%U> <%Urealname%U>

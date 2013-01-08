@@ -1,0 +1,8 @@
+%BChanServ DRONE%B is like ChanServ CLOSE but instead of
+using kick it uses G:line or GZ:line.
+
+For more information, see ChanServ CLOSE.
+
+Syntax: %BDRONE%B %U#channel%U <%Ureason%U>
+
+Requires SERVOP.

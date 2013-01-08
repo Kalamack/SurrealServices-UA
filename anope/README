@@ -1,0 +1,32 @@
+	This is a utility for converting Anope databases to SrSv. For
+this to work, you'll need a current copy of ircservices for their
+convert-epona tool. This tool converts an epona/anope database to XML,
+and the parsexml script loads that XML file into your database.
+
+A) It does not handle channel access, as there is no reliable conversion
+between anope's LEVELS system and SrSv's xOP system.
+
+B) It currently does not handle memos, although it probably could.
+
+C) As SrSv has no concept of forbidden nicks or channels (nicks are
+usually handled by just registering, and holding, and channels can be
+just closed) this is not handled either.
+
+D) Channel passwords are simply discarded, as SrSv does not use channel
+passwords.
+
+E) This program has not been tested with a recent anope database,
+although we believe it was done with an early 1.7.x version.
+
+F) It is likely that the conversion can be done w/o the ircservices
+tools by converting Anope's MySQL database directly, however it has not
+been done yet.
+
+G) This database converter is BETA SOFTWARE. It is not guaranteed to not
+eat your data for lunch with a little barbecue sauce, and then burp
+happily.
+
+H) At present, merging two databases is NOT SUPPORTED, although it
+should be entirely possible. It merely has not been tested. Further,
+there is NO resolution method for collisions between the two databases
+for either channels or nicks.

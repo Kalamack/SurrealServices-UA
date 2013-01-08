@@ -1,0 +1,4 @@
+%BChanServ SET NOCLONES%B Kicks and bans users who bring clones (multiple connections) to a channel.
+Users in the channel's access lists are excempt.
+ 
+Syntax: %BSET%B %U#channel%U %BNOCLONES%B <%UON/OFF%U>

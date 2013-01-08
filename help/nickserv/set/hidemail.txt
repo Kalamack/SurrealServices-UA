@@ -1,0 +1,6 @@
+%BNickServ SET HIDEMAIL%B hides your email address from users.
+
+Syntax: %BSET%B [%Unick%U] %BHIDEMAIL%B <%UON|OFF%U>
+
+If %BHIDEMAIL%B is disabled, your email will no longer be
+hidden and will be visible in your NickServ INFO listing.

@@ -1,0 +1,7 @@
+%BNickServ SET GREET%B sets the message that will be
+displayed when joining a channel that you have sufficient
+access to and has GREET enabled.
+
+Syntax: %BSET%B GREET%B <%UNONE|message%U>
+
+NONE will remove/unset your greet.

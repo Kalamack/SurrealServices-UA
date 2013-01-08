@@ -1,0 +1,9 @@
+%BOperServ LOGONNEWS%B handles the logonnews system.
+
+There are two lists. one for Users, and one for Opers (not
+finished yet). A news item may be permanent (does not expire) or
+may have a limited life (expires).
+
+Syntax: %BLOGONNEWS ADD%B <%UU|O%U> [%U+expiry%U] <%Umessage%U>
+        %BLOGONNEWS LIST%B <%UU/O%U>
+        %BLOGONNEWS DEL%B <%UU/O%U> <%Unum%U>

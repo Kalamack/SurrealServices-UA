@@ -1,0 +1,5 @@
+Syntax: SET #CHANNEL TOPICLOCK <UOP|VOP|AOP|SOP|CFOUNDER|FOUNDER|OFF>
+
+Enables or disables the TOPICLOCK option for a channel.
+When TOPICLOCK is set, ChanServ will not allow the
+channel topic to be changed unless access permits.

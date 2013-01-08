@@ -1,0 +1,4 @@
+%BNickServ SET ROOT%B is an alias for NS CHGROOT.
+
+See NS HELP CHGROOT for more information.
+

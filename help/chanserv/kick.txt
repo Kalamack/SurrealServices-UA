@@ -1,0 +1,3 @@
+%BChanServ KICK%B allows you to kick a user from a channel.
+
+Syntax: %BKICK%B %U#channel%U <%Unick%U> [%Ureason%U]

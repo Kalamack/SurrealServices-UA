@@ -1,0 +1,4 @@
+%BBotServ UNASSIGN%B allows you to remove a previously assigned bot
+from a channel.
+
+Syntax: %BUNASSIGN%B %U#channel%U

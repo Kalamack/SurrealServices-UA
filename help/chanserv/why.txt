@@ -1,0 +1,3 @@
+%BChanServ WHY%B tells what status a user has in a channel.
+
+Syntax: %BWHY%B %U#channel%U [%Unick%U [%Unick%U ...]]

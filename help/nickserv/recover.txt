@@ -1,0 +1,12 @@
+%BNickServ RECOVER%B allows you to get back your nick if
+someone else is using it. It's slightly nicer than GHOST.
+
+NickServ will change the target's nick to a guestnick, and
+jupes the nick for one minute. To use it yourself, use 
+%BNS RELEASE%B, then change your nick, OR use %BNS SIDENTIFY%B
+
+Syntax: %BRECOVER%B %Unick%U [%Upassword%U]
+
+This command also identifies you to your nick if you are not
+already. If you are already identified, the password is
+optional.

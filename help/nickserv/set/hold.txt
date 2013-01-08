@@ -1,0 +1,5 @@
+%BNickServ SET HOLD%B sets whether the given nick will
+expire.  Setting this to ON prevents the nick from
+expiring.
+
+Syntax: %BSET%B [%Unick%U] %BHOLD%B <%UON/OFF%U>

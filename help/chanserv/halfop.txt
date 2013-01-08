@@ -1,0 +1,5 @@
+%BChanServ HALFOP%B allows you to set halfop mode on either
+yourself or on other people in a channel.
+
+Syntax: %BHALFOP%B %U#channel%U [%Unick%U [%Unick%U ...]]
+        %BHALFOP%B %U#channel%U [%Uchannel%U [%Uchannel%U]]

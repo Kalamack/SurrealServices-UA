@@ -1,0 +1,6 @@
+%BOperServ QLINE%B prevents a nick or nickmask from being used,
+except by opers and services agents.
+
+Syntax: %BQLINE ADD%B [%U+expiry%U] <%Umask%U> <%Ureason%U>
+        %BQLINE DEL%B <%Umask%U>
+        %BQLINE LIST%B

@@ -1,0 +1,3 @@
+%BOperServ SVSNICK%B forcibly changes a user's nick.
+
+Syntax: %BSVSNICK%B <%Uoldnick%U> <%Unewnick%U>

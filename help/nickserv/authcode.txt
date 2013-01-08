@@ -1,0 +1,7 @@
+%BNickServ AUTHCODE%B is used for nick registrations when email
+verification is enabled, or for sendpass when password-hashing
+is enabled.
+
+More information on its use should be in the email you receive.
+
+Syntax: %BAUTHCODE%B %Unickname%U <%Ucode%U> [%Unewpassword%U]

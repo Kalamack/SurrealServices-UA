@@ -1,0 +1,4 @@
+%SpamServ WATCH ADD%B adds the specified channel
+to be watched by the SpamServ pseudoclients.
+
+Syntax: %BWATCH ADD%B %U#channel%U

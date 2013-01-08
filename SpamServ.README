@@ -1,0 +1,12 @@
+	SpamServ is a module written to watch channels for on-join private
+messages, which might be an indication of a spam bot.  This module is not
+considered to be stable, and does not take any action for private messages
+received, only reports the private messages to the diagnostics channel.
+
+	This service requires the 'services' module to be loaded, as well
+as a population of nicknames in the 'config/spamserv/nicklist.txt' directory.
+The module itself assumes that there are nicknames supplied in the .txt file,
+delimited by a new line.
+
+	There is some documentation of this module, in the form of 
+/MSG SpamServ HELP

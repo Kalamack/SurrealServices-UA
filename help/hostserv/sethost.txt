@@ -1,0 +1,6 @@
+%BHostServ SETHOST%B sets the vHost for the given nick to that
+of the given hostmask.  If your IRCD supports vIdents, then
+using SET <nick> <ident>@<hostmask> set idents for users as well
+as vhosts.
+ 
+Syntax: %BSET%B %Unick%U <%Uvhost%U>

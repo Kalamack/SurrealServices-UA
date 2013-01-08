@@ -1,0 +1,8 @@
+%BChanServ SET WelcomeInChan%B instructs services to send
+WELCOME messages to the channel when a user joins, rather
+than to the user as a private NOTICE.
+
+This flag probably doesn't do what you think it does.
+Don't use it.
+
+Syntax: %BSET%B %U#channel%U %BWelcomeInChan%B <%UON/OFF%U>

@@ -1,0 +1,4 @@
+%BNickServ DROP%B allows you to relinquish a previously registered
+nickname.
+ 
+Syntax: %BDROP%B %Unick%U <%Upassword%U>

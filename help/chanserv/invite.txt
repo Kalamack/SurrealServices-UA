@@ -1,0 +1,5 @@
+%BChanServ INVITE%B allows you to invite a user into a channel.
+
+Syntax: %BINVITE%B %U#channel%U [%Unick%U]
+
+If you do not specify a nick, you will be invited.

@@ -1,0 +1,8 @@
+%BNickServ SET VACATION%B extends the time limit on nick
+expiration from %E$services::conf{'nickexpire'}%E days to %E$services::conf{'vacationexpire'}%E days.  Your nick must
+be at least %Eint($services::conf{'vacationexpire'}/3)%E days old for this to be available.
+
+The flag is cleared on your next identify, and you will not be
+able to use it again until %Eint($services::conf{'vacationexpire'}/3)%E days have passed.
+
+Syntax: %BSET%B [%Unick%U] %BVACATION%B <%UON|OFF%U>

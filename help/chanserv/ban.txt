@@ -1,0 +1,6 @@
+%BChanServ BAN%B Tells ChanServ to set a ban on a person or
+mask. It can also remove bans, if you prefix the ban with a -
+
+Syntax: %BBAN%B %U#channel%U <%Bnick|mask%B>
+
+By default limited to %BHOP%B

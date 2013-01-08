@@ -1,0 +1,3 @@
+%BNickServ UNLINK%B allows you to delete a linked nickname.
+
+Syntax: %BUNLINK%B %Unick%U <%Upassword%U>

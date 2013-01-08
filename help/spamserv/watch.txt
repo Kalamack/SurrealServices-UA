@@ -1,0 +1,5 @@
+%BSpamServ WATCH%B modifies the list of channels being watched.
+
+  ADD   - Add a channel to be watched for spam.
+  DEL   - Remove a channel from being watched.
+  LIST  - List channels currently being watched.

@@ -1,0 +1,8 @@
+%BSpamServ SET%B allows you to modify the
+configuration on the fly.
+
+Syntax: %BSET%B %Uoption%U <%Uvalue%U>
+
+Caveats: This command is limited toi previously
+known options in the configuration file. Use 
+%BSpamServ LISTCONF%B to list those options.

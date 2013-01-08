@@ -1,0 +1,5 @@
+%BNickServ RELEASE%B removes any hold on your nickname. NickServ
+will hold a nickname that is used without authorization for one
+minute; this command releases it sooner.
+
+Syntax: %BRELEASE%B %Unick%U [%Upassword%U]
