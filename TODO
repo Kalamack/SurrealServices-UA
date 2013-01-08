@@ -8,3 +8,4 @@ Ideas:
 * Make it work without MySQL.
 * Modularize everything.
 * Make everything more configurable.
+* tabris left some #FIXME comments throughout the old code. Maybe we should fix it.
