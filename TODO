@@ -1,0 +1,10 @@
+SurrealServices+UA 0.1 TODO
+
+[ ] Fix any pre-existing bugs and clean the code up.
+[ ] Make the existing code IRCv3 compliant.
+
+Ideas:
+
+* Make it work without MySQL.
+* Modularize everything.
+* Make everything more configurable.
