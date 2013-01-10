@@ -1,11 +1,11 @@
 With the exception of Digest::SHA::PurePerl and Date::Parse, which are from
-CPAN, the code for SurrealServices has been mosly written from scratch.
+CPAN, the code for SurrealServices has been mostly written from scratch.
 
 SurrealServices has the following copyrights:
 
 Copyright (C) 2004 - 2010 tabris <tabris@surrealchat.net>
 Copyright (C) 2004 - 2009 saturn <saturn@surrealchat.net>
-Copyright (C) 2009 - 2010 Michael Tanner <musashix90@gmail.com>
+Copyright (C) 2009 - 2010 MusashiX90 <musashix90@gmail.com>
 Copyright (C) 2008 Errietta Kostola <errietta@hotmail.com>
 Copyright (C) 2013 Justin Merwin <justin.merwin@lovps.com>
 Copyright (C) 2013 Jordan Songer <rails@rizon.net>
