@@ -18,6 +18,7 @@ Settings:
   BANTYPE        Selects the ban-type to be used for KICKBAN and AKICKs
   TOPICLOCK      Restricts who can change the topic in the channel.
   NOCLONES       Bans people who bring clones into the channel.
+  BANTIME		 Time until bans are automatically removed.
 Oper only flags:
   HOLD         Prevent channel from expiring
   FREEZE       Suspend access in this channel

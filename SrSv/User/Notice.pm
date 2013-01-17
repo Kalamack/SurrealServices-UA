@@ -29,10 +29,7 @@ sub notice($@) {
 	# FIXME: ref to 'NickServ' should call for the agent-nick in nickserv.pm,
 	# but that's not available at this layer, so we'd be making
 	# a blind reference to something that _might_ be undef
-	my $nsUser = {NICK => $nickserv::nsnick, ID => 
-ircd::getAgentUuid($nickserv::nsnick)};
-
-	ircd::notice($user->{AGENT} || $nsUser, $user, @_);
+	ircd::notice($user->{AGENT} || 'NickServ', get_user_nick($user), @_);
 }
 
 sub user_die($@) {

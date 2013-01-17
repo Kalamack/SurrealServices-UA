@@ -38,16 +38,16 @@ use SrSv::NickReg::Flags qw(NRF_NOHIGHLIGHT nr_chk_flag_user);
 use SrSv::MySQL '$dbh';
 
 use SrSv::IPv6;
-use Data::Dumper;
+
 use constant {
 	MAX_LIM => 16777215
 };
 
 *kill_user = \&nickserv::kill_user;
 
-our $osnick_default = 'OperServ1';
+our $osnick_default = 'OperServ';
 our $osnick = $osnick_default;
-our $osuser = { NICK => $osnick, ID => ircd::getAgentUuid($osnick) };
+
 my %newstypes = (
 	u => 'User',
 	o => 'Oper'
@@ -77,7 +77,6 @@ our (
 );
 
 sub init() {
-	$osuser = { NICK => $osnick, ID => ircd::getAgentUuid($osnick) };
 =cut
 	$add_akill = $dbh->prepare("INSERT INTO akill SET setter=?, mask=?, reason=?, time=?, expire=?");
 	$del_akill = $dbh->prepare("DELETE FROM akill WHERE mask=?");
@@ -139,24 +138,22 @@ sub init() {
 }
 
 sub dispatch($$$) {
-	$osuser = { NICK => $osnick, ID => ircd::getAgentUuid($osnick) };
-	my ($user, $dstUser, $msg) = @_;
+	my ($src, $dst, $msg) = @_;
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
-	$user -> {AGENT} = $osuser;
-	my $src = $user -> {NICK};
-	return unless (lc $dstUser->{NICK} eq lc $osnick);
-	get_user_id ($user);
+
+	my $user = { NICK => $src, AGENT=> $dst };
+
 	services::ulog($osnick, LOG_INFO(), "cmd: [$msg]", $user);
 
 	return if flood_check($user);
-	unless(defined(adminserv::is_svsop($user)) or adminserv::is_ircop($user)) {
+	unless(adminserv::is_svsop($user) or adminserv::is_ircop($user)) {
 		notice($user, $err_deny);
 		if($cmd =~ /^set/i) {
 			nickserv::kill_user($user, "OS SET doesn't exist here");
 		}
-		ircd::globops($osuser, "\002$src\002 failed access to $osnick $msg");
+		ircd::globops($osnick, "\002$src\002 failed access to $osnick $msg");
 		return;
 	}
 
@@ -415,9 +412,7 @@ sub os_fjoin($$@) {
 		notice($user, "You don't have the right access");
 		return $event::SUCCESS;
 	}
-	my $tuser = {NICK=>$target};
-	get_user_id ($tuser);
-	ircd::svsjoin($osuser, $tuser, @chans);
+	ircd::svsjoin($osnick, $target, @chans);
 }
 
 sub os_fpart($$@) {
@@ -441,7 +436,7 @@ sub os_fpart($$@) {
 	}
 	$reason = join(' ', @params) if @params;
 	
-	ircd::svspart($osuser, $target, $reason, @chans);
+	ircd::svspart($osnick, $target, $reason, @chans);
 }
 
 sub os_qline_add($$$$) {
@@ -623,7 +618,7 @@ sub os_svsnick($$$) {
 		return $event::SUCCESS;
 	}
 	nickserv::enforcer_quit($newnick);
-	ircd::svsnick($osuser, $curnick, $newnick);
+	ircd::svsnick($osnick, $curnick, $newnick);
 	notice($user, $curnick.' changed to '.$newnick);
 	return $event::SUCCESS;
 }
@@ -814,7 +809,7 @@ sub os_except_hostname_del($$) {
 	my $hostmask = $hostname;
 	$hostmask =~ s/\*/\%/g;
 	my $ret = $del_clone_exceptname->execute($hostmask);
-	ircd::notice($osuser, main_conf_diag, "hostname: $hostname; hostmask: $hostmask");
+	ircd::notice($osnick, main_conf_diag, "hostname: $hostname; hostmask: $hostmask");
 	
 	if($ret == 1) {
 		notice($user, "\002$hostname\002 successfully deleted from the hostname exception list");
@@ -923,6 +918,7 @@ sub os_rehash($;$) {
 	return $event::SUCCESS;
 }
 
+
 sub os_svskill($$$) {
 	my ($user, $targets, $reason) = @_;
 	
@@ -939,7 +935,7 @@ sub os_svskill($$$) {
 			return $event::SUCCESS;
 		}
 
-		ircd::svskill($osuser, $target, $reason);
+		ircd::svskill($osnick, $target, $reason);
 	}
 
 	return $event::SUCCESS;
@@ -955,7 +951,7 @@ sub os_kill($$$) {
 	}
 
 	foreach my $target (split(',', $targets)) {
-		my $tuser = { NICK => $target, AGENT => $osuser };
+		my $tuser = { NICK => $target, AGENT => $osnick };
 		if (!get_user_id($tuser)) {
 			notice($user, $target.' is not online.');
 			return $event::SUCCESS;
@@ -1012,7 +1008,7 @@ sub os_gline($$$@) {
 	}
 	unless($zline) {
 		if(!$remove) {
-			ircd::kline(($osuser), $ident, $host, $expiry, $reason);
+			ircd::kline($opernick, $ident, $host, $expiry, $reason);
 		} else {
 			ircd::unkline($opernick, $ident, $host);
 		}
@@ -1038,7 +1034,7 @@ sub os_gline($$$@) {
 			return;
 		}
 		if(!$remove) {
-			ircd::zline($osnick, $host, $expiry, $reason);
+			ircd::zline($opernick, $host, $expiry, $reason);
 		} else {
 			ircd::unzline($opernick, $host);
 		}
@@ -1121,7 +1117,7 @@ sub __os_massmod($$$$@) {
 		}
 		foreach my $tuser (&$func($arg)) {
 			next unless is_online($tuser);
-			$tuser->{AGENT} = $osuser;
+			$tuser->{AGENT} = $osnick;
 			nickserv::kill_user($tuser,
 				"Killed by \002".get_user_nick($user)."\002".
 				($msg ? ": $msg" : '')
@@ -1135,7 +1131,7 @@ sub __os_massmod($$$$@) {
 		}
 		foreach my $tuser (&$func($arg)) {
 			next unless is_online($tuser);
-			$tuser->{AGENT} = $osuser;
+			$tuser->{AGENT} = $osnick;
 			nickserv::kline_user($tuser, services_conf_chankilltime,
 				"K:Lined by \002".get_user_nick($user)."\002".
 				($msg ? ": $msg" : '')
@@ -1146,7 +1142,7 @@ sub __os_massmod($$$$@) {
 		notice($user, "Must have message to send") unless(@args);
 		foreach my $tuser (&$func($arg)) {
 			next unless is_online($tuser);
-			$tuser->{AGENT} = $osuser;
+			$tuser->{AGENT} = $osnick;
 			notice($tuser,
 				"Automated message from \002".get_user_nick($user),
 				$msg
@@ -1167,8 +1163,8 @@ sub __os_massmod($$$$@) {
 		foreach my $tuser (&$func($arg)) {
 			next unless is_online($tuser);
 			my $cn = $msg; # not a message, most cases it is
-			$tuser->{AGENT} = $osuser;
-			ircd::svsjoin($osuser, get_user_nick($tuser), $args[0]);
+			$tuser->{AGENT} = $osnick;
+			ircd::svsjoin($osnick, get_user_nick($tuser), $cn);
 		}
 	}
 	else {
@@ -1317,4 +1313,3 @@ sub get_newusers($) {
 ## IRC EVENTS ##
 
 1;
-

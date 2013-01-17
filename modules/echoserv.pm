@@ -20,24 +20,13 @@ use SrSv::IRCd::Event qw( addhandler );
 use SrSv::Agent;
 use SrSv::Conf2Consts qw( main );
 
-my $esnick_default = 'EchoServ';
-my $esnick = $esnick_default;
-addhandler('PRIVMSG', undef, undef, 'echoserv::ev_privmsg');
-our $esuser = { NICK => $esnick, ID => "123AAAAAI" }; #FIXME = erry
-sub ev_privmsg { 
-	$esuser = { NICK => $esnick, ID => "123AAAAAI" }; #FIXME = erry
-	my ($user, $dstUser, $msg) = @_;
-	return unless (lc $dstUser->{NICK} eq lc $esnick);
-	ircd::privmsg($dstUser, $user->{ID}, $msg);
-}
+my $esnick = 'EchoServ';
+
+addhandler('PRIVMSG', undef, lc $esnick, 'echoserv::ev_privmsg');
+sub ev_privmsg { ircd::privmsg($_[1], $_[0], $_[2]) }
 
 addhandler('NOTICE', undef, lc $esnick, 'echoserv::ev_notice');
-sub ev_notice { 
-	$esuser = { NICK => $esnick, ID => "123AAAAAI" }; #FIXME = erry
-	my ($user, $dstUser, $msg) = @_;
-	return unless (lc $dstUser->{NICK} eq lc $esnick);
-	ircd::notice($dstUser, $user, $msg);
-}
+sub ev_notice { ircd::notice($_[1], $_[0], $_[2]) }
 
 agent_connect($esnick, 'services', undef, '+pqzBGHS', 'Echo Server');
 agent_join($esnick, main_conf_diag);

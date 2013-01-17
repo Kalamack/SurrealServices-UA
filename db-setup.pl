@@ -30,7 +30,7 @@ BEGIN {
 }
 
 chdir PREFIX;
-use lib PREFIX;
+use lib PREFIX, "@{[PREFIX]}/CPAN";
 
 our ($delete_db, $skip_backup, $auto_backup, $restore, $help);
 BEGIN {

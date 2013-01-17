@@ -21,35 +21,36 @@ use strict;
 use Exporter 'import';
 # parse_sjoin shouldn't get used anywhere else, as we never produce SJOINs
 # parse_tkl however is used for loopbacks.
-BEGIN { our @EXPORT_OK = qw(parse_line parse_tkl parse_addline) }
+BEGIN { our @EXPORT_OK = qw(parse_line parse_tkl) }
 
 # FIXME
 BEGIN { *SJB64 = \&ircd::SJB64; *CLK = \&ircd::CLK; *NICKIP = \&ircd::NICKIP; }
 
 use SrSv::Conf 'main';
+use SrSv::Conf2Consts 'main';
+
+use Socket;
+BEGIN {
+	if(main_conf_ipv6) {
+		require Socket6; import Socket6;
+	}
+}
 
 use SrSv::Debug;
 use SrSv::IRCd::State qw($ircline $remoteserv create_server get_server_children set_server_state get_server_state %IRCd_capabilities);
 use SrSv::IRCd::Queue qw(queue_size);
-use SrSv::IRCd::IO qw( ircsend  ircsendimm);
+use SrSv::IRCd::IO qw( ircsend );
 use SrSv::Unreal::Modes qw(%opmodes);
 
 # Unreal uses its own modified base64 for everything except NICKIP
 use SrSv::Unreal::Base64 qw(b64toi itob64);
-use SrSv::User '/./';
+
 # Unreal uses unmodified base64 for NICKIP.
 # Consider private implementation,
 # tho MIME's is probably faster
 use MIME::Base64;
-use Data::Dumper;
-# FIXME
-use constant {
-	# Wait For
-	WF_NONE => 0,
-	WF_NICK => 1,
-	WF_CHAN => 2,
-	WF_ALL => 3,
-};
+
+use SrSv::Constants;
 
 use SrSv::Shared qw(@servernum);
 
@@ -57,9 +58,7 @@ our %cmdhash;
 
 sub parse_line($) {
 	my ($in) = @_;
-	if (!$in) {
-		return;
-	}
+	return unless $in;
 	my $cmd;
 
 	if($in =~ /^(?:@|:)(\S+) (\S+)/) {
@@ -68,6 +67,7 @@ sub parse_line($) {
 	elsif ($in =~ /^(\S+)/) {
 		$cmd = $1;
 	}
+
 	my $sub = $cmdhash{$cmd};
 	unless (defined($sub)) {
 		print "Bailing out from $ircline:$cmd for lack of cmdhash\n" if DEBUG();
@@ -98,6 +98,7 @@ sub parse_line($) {
 
 	return @out;
 }
+
 sub parse_sjoin($$$$) {
 	my ($server, $ts, $cn, $parms) = @_;
 	my (@users, @bans, @excepts, @invex, @blobs, $blobs, $chmodes, $chmodeparms);
@@ -137,6 +138,7 @@ sub parse_sjoin($$$$) {
 
 	return ($server, $cn, $ts, $chmodes, $chmodeparms, \@users, \@bans, \@excepts, \@invex);
 }
+
 sub parse_tkl ($) {
 	my ($in) = @_;
 	# This function is intended to accept ALL tkl types,
@@ -190,6 +192,7 @@ sub PING($) {
 	# ($event, $src, $dst, $args)
 	return ('PING', undef, undef, WF_NONE, $1);
 }
+
 sub EOS($) {
 	my $event;
 	$_[0] =~ /^(@|:)(\S+) (?:EOS|ES)/; # Sometimes there's extra crap on the end?
@@ -200,7 +203,6 @@ sub EOS($) {
 	else {
 		$server = $2;
 	}
-	print "SERVER $server\n";
 	set_server_state($server, 1);
 	return undef() unless get_server_state($remoteserv);
 	if($server eq $remoteserv) { $event = 'SEOS' } else { $event = 'EOS' }
@@ -210,10 +212,9 @@ sub EOS($) {
 
 sub SERVER($) {
 	#ircd::debug($_[0]) if $debug;
-
 	if($_[0] =~ /^(?:SERVER|\') (\S+) (\S+) :(U[0-9]+)-([A-Za-z0-9]+)-([0-9]+) (.*)$/) {
-		# SERVER test-tab.surrealchat.net 1 :U2307-FhinXeOoZEmM-200 SurrealChat
-		# cmd, servername, hopCount, U<protocol>-<buildflags>-<numeric> infoLine
+	# SERVER test-tab.surrealchat.net 1 :U2307-FhinXeOoZEmM-200 SurrealChat
+	# cmd, servername, hopCount, U<protocol>-<buildflags>-<numeric> infoLine
 		$remoteserv = $1;
 		create_server($1);
 		$servernum[$5] = $1;
@@ -249,14 +250,6 @@ sub SERVER($) {
 		return ('SERVER', undef, undef, WF_ALL, $1, $2, $3, $4);
 		# src, serverName, numHops, infoLine
 	}
-	elsif ($_[0] =~ /SERVER (\S+) (\S+) (\d+) (\S+) :(.*)$/) {
-		#SERVER inspircd.erry.omg mypass 0 583 :erry World
-		#SERVER servername password hopcount SID :Server Desc
-		$remoteserv = $4;
-		create_server ($4);
-		#since from now on we'll be getting commands as sent from the SID it's much wiser to keep that than the name.
-		return ("SERVER", undef, undef, WF_ALL, undef, $1, $3, $5, $4);
-	}
 }
 
 sub SQUIT($) {
@@ -291,9 +284,7 @@ sub PROTOCTL($) {
 
 sub JOIN($) {
 	$_[0] =~ /^:(\S+) (?:C|JOIN) (\S+)$/;
-	my $user = { NICK => $1 };
-	get_user_id ($user);
-	return ('JOIN', undef, 1, WF_CHAN, $user, $2);
+	return ('JOIN', undef, 1, WF_CHAN, $1, $2);
 }
 
 sub SJOIN($) {
@@ -305,7 +296,6 @@ sub SJOIN($) {
 		return ('SJOIN', undef, undef, WF_CHAN, parse_sjoin($remoteserv, $ts, $cn, $payload));
 	}
 	elsif($_[0] =~ /^(@|:)(\S+) (?:\~|SJOIN) (\S+) (\S+) (.*)$/) {
-		print "SJOIN\n";
 		my ($server, $ts, $cn, $payload) = ($2, $3, $4, $5);
 		if ($1 eq '@') {
 			$server = $servernum[b64toi($2)];
@@ -321,40 +311,28 @@ sub SJOIN($) {
 }
 
 sub PART($) {
-	my $user;
-	
 	if($_[0] =~ /^:(\S+) (?:D|PART) (\S+) :(.*)$/) {
-		$user = {NICK => $1};
-		get_user_id ($user);
-		return ('PART', undef, 0, WF_CHAN, $user, $2, $3);
+		return ('PART', undef, 0, WF_CHAN, $1, $2, $3);
 	}
 	elsif($_[0] =~ /^:(\S+) (?:D|PART) (\S+)$/) {
-		$user = {NICK => $1};
-		get_user_id ($user);
-		return ('PART', undef, 0, WF_CHAN, $user, $2, undef);
+		return ('PART', undef, 0, WF_CHAN, $1, $2, undef);
 	}
 }
+
 sub MODE($) {
-	my $user;
-	
 	if($_[0] =~ /^(@|:)(\S+) (?:G|MODE) (#\S+) (\S+) (.*)(?: \d+)?$/) {
 		my $name;
 		if ($1 eq '@') {
 			$name = $servernum[b64toi($2)];
-			$user = {NICK => $name};
 		}
 		else {
 			$name = $2;
-			$user = { NICK=>$name};
-			get_user_id ($user);
 		}
-		return ('MODE', undef, 1, WF_ALL, $user, $3, $4, $5);
+		return ('MODE', undef, 1, WF_ALL, $name, $3, $4, $5);
 	}
 	elsif($_[0] =~ /^:(\S+) (?:G|MODE) (\S+) :(\S+)$/) {
 		# We shouldn't ever get this, as UMODE2 is preferred
-		$user = { NICK => $1 };
-		get_user_id($user);
-		return ('UMODE', 0, 0, WF_ALL, $user, $3);
+		return ('UMODE', 0, 0, WF_ALL, $1, $3);
 	}
 
 }
@@ -362,20 +340,14 @@ sub MODE($) {
 sub MESSAGE($) {
 	my ($event, @args);
 	if($_[0] =~ /^(@|:)(\S+) (?:\!|PRIVMSG) (\S+) :(.*)$/) {
-	
-		my ($name, $srcUser, $dstUser) ;
+		my $name;
 		if ($1 eq '@') {
 			$name = $servernum[b64toi($2)];
-			$srcUser = {NICK=>$name};
 		}
 		else {
 			$name = $2;
-			$srcUser = {NICK=>$name};
-			get_user_id ($srcUser);
 		}
-		my $dest = $3;
-		$dstUser = {NICK=>$dest};
-		$event = 'PRIVMSG'; @args = ($srcUser, $dstUser, $4);
+		$event = 'PRIVMSG'; @args = ($name, $3, $4);
 	}
 	elsif($_[0] =~ /^(@|:)(\S+) (?:B|NOTICE) (\S+) :(.*)$/) {
 		my $name;
@@ -389,32 +361,30 @@ sub MESSAGE($) {
 	}
 	$args[1] =~ s/\@${main_conf{local}}.*//io;
 
-	if(queue_size > 50 and $event eq 'PRIVMSG' and $args[1] !~ /^#/ and $args[2] =~ /^\w/) {
-		ircd::notice($args[1], $args[0], "It looks like the system is busy. You don't need to do your command again, just hold on a minute...");
+	if(queue_size(WF_MAX) > main_conf_queue_highwater) {
+		if($event eq 'PRIVMSG' and $args[1] !~ m'^#' and $args[2] =~ /^\w/) {
+			ircd::notice($args[1], $args[0],
+				"It looks like the system is busy. ".
+				"You don't need to do your command again, just hold on a minute...");
+		}
 	}
 
-	return ($event, 0, 1, WF_ALL, @args);
+	return ($event, 0, 1, WF_MSG, @args);
 }
 
 sub AWAY($) {
 	if($_[0] =~ /^:(\S+) (?:6|AWAY) :(.*)$/) {
-		my $user = {NICK=>$1};
-		get_user_id($user);
-		return ('AWAY', undef, undef, WF_ALL, $user, $2);
+		return ('AWAY', undef, undef, WF_ALL, $1, $2);
 	}
-	elsif($_[0] =~ /^:(\S+) (?:6|AWAY)$/) {
-		my $user = {NICK => $1};
-		get_user_id ($user);
-		return ('BACK', undef, undef, WF_ALL, $user);
+	elsif($_[0] =~ /^:(\S+) (?:6|AWAY) $/) {
+		return ('BACK', undef, undef, WF_ALL, $1);
 	}
 }
 
 sub NICK($) {
 	my ($event, @args);
-	#>> 32 :erry_ & erry2 :1310809099
 	if($_[0] =~ /^:(\S+) (?:NICK|\&) (\S+) :?(\S+)$/) {
-		my $user = {NICK=>$1};		
-		return ('NICKCHANGE', undef, undef, WF_NICK, $user, $2, $3);
+		return ('NICKCHANGE', undef, undef, WF_NICK, $1, $2, $3);
 	}
 	elsif(CLK && NICKIP && $_[0] =~ /^(?:NICK|\&) (\S+) (\d+) (\S+) (\S+) (\S+) (\S+) (\d+) (\S+) (\S+) (\S+) (\S+) :(.*)$/) {
 #NICK Guest57385 1 !14b7t0 northman tabriel.tabris.net 38 0 +iowghaAxNWzt netadmin.SCnet.ops SCnet-3B0714C4.tabris.net CgECgw== :Sponsored By Skuld
@@ -428,13 +398,12 @@ sub NICK($) {
 			$server = $servernum[b64toi($server)];
 
 		}
-		if((length($IP) > 8)) {
-			#$IP = Socket6::inet_ntop(AF_INET6, MIME::Base64::decode($IP));
+		if(main_conf_ipv6 && (length($IP) > 8)) {
+			$IP = Socket6::inet_ntop(AF_INET6, MIME::Base64::decode($IP));
 		} else {
 			$IP = join('.', unpack('C4', MIME::Base64::decode($IP)));
 		}
-		my $user = {NICK=>$nick};
-		return ('NICKCONN', undef, undef, WF_NICK, $user, $hops, $ts, $ident, $host, $server, $stamp, $modes, $vhost,
+		return ('NICKCONN', undef, undef, WF_NICK, $nick, $hops, $ts, $ident, $host, $server, $stamp, $modes, $vhost,
 			$gecos, $IP, $cloakhost
 		);
 	}
@@ -449,13 +418,12 @@ sub NICK($) {
 			$server = $servernum[b64toi($server)];
 
 		}
-		if( length($IP) > 8) {
+		if(main_conf_ipv6 && length($IP) > 8) {
 			$IP = Socket6::inet_ntop(AF_INET6, MIME::Base64::decode($IP));
 		} else {
 			$IP = join('.', unpack('C4', MIME::Base64::decode($IP)));
 		}
-		my $user = {NICK=>$nick};
-		return ('NICKCONN', undef, undef, WF_NICK, $user, $hops, $ts, $ident, $host, $server, $stamp, $modes, $vhost,
+		return ('NICKCONN', undef, undef, WF_NICK, $nick, $hops, $ts, $ident, $host, $server, $stamp, $modes, $vhost,
 			$gecos, $IP
 		);
 	}
@@ -470,25 +438,30 @@ sub NICK($) {
 			$server = $servernum[b64toi($server)];
 
 		}
-		my $user = {NICK=>$nick};
-		return ('NICKCONN', undef, undef, WF_NICK, $user, $hops, $ts, $ident, $host, $server, $stamp, $modes,
+		return ('NICKCONN', undef, undef, WF_NICK, $nick, $hops, $ts, $ident, $host, $server, $stamp, $modes,
 			$vhost, $gecos);
 	}
 }
 
 sub QUIT($) {
-	print "?????????/";
 	$_[0] =~ /^:(\S+) (?:QUIT|\,) :(.*)$/;
-	my $user = { NICK=>$1 };
-	return ('QUIT', 0, undef, WF_NICK, $user, $2);
+	return ('QUIT', 0, undef, WF_NICK, $1, $2);
 }
 
 sub KILL($) {
-	$_[0] =~ /^:(\S+) KILL (\S+) :(.*)$/;
-	my $murderer = {NICK=>$1};
-	my $victim = {NICK=>$2};
-	return ("KILL", 0, 1, WF_NICK, $murderer, $victim, $3, undef);
+#:tabris KILL ProxyBotW :tabris.netadmin.SCnet.ops!tabris (test.)
+#:ProxyBotW!bopm@ircop.SCnet.ops QUIT :Killed (tabris (test.))
+	$_[0] =~ /^(@|:)(\S+) (?:KILL|\.) (\S+) :(\S+) \((.*)\)$/;
+	my $name;
+	if ($1 eq '@') {
+		$name = $servernum[b64toi($2)];
+	}
+	else {
+		$name = $2;
+	}
+	return ('KILL', 0, 1, WF_NICK, $name, $3, $4, $5);
 }
+
 sub KICK($) {
 #:tabris KICK #diagnostics SurrealBot :i know you don't like this. but it's for science!
 	$_[0] =~ /^(@|:)(\S+) (?:KICK|H) (\S+) (\S+) :(.*)$/;
@@ -501,8 +474,7 @@ sub KICK($) {
 	else {
 		$name = $2;
 	}
-	my $user = {NICK => $name};
-	return ('KICK', 0, undef, WF_CHAN, $user, $3, $4, $5);
+	return ('KICK', 0, undef, WF_CHAN, $name, $3, $4, $5);
 }
 
 sub HOST($) {
@@ -554,17 +526,15 @@ sub TOPIC($) {
 		if ($ts =~ s/^!//) {
 			$ts = b64toi($ts);
 		}
-		my $usetter = {NICK=>$name};
-		return ('TOPIC', 0, 1, WF_ALL, $usetter, $cn, $setter, $ts, $topic);
+		return ('TOPIC', 0, 1, WF_ALL, $name, $cn, $setter, $ts, $topic);
 	}
 	elsif($_[0] =~ /^(?:TOPIC|\)) (\S+) (\S+) (\S+) :(.*)$/) {
 		my ($cn, $setter, $ts, $topic) = ($1, $2, $3, $4);
 		if ($ts =~ s/^!//) {
 			$ts = b64toi($ts);
 		}
-		# src, channel, setter, timestamp, topic
-		my $usetter = {NICK=>$setter};
-		return ('TOPIC', 0, 1, WF_ALL, undef, $cn, $usetter, $ts, $topic);
+	# src, channel, setter, timestamp, topic
+		return ('TOPIC', 0, 1, WF_ALL, undef, $cn, $setter, $ts, $topic);
 	}
 }
 
@@ -583,10 +553,9 @@ sub UMODE($) {
 	# Yes, I'm changing the event type on this
 	# It's better called UMODE, and easily emulated
 	# on IRCds with only MODE.
-	my $user = {NICK => $1};
-	get_user_id ($user);
-	return ('UMODE', 0, 0, WF_ALL, $user, $2);
+	return ('UMODE', 0, 0, WF_ALL, $1, $2);
 }
+
 sub SVSMODE($) {
 #:tabris | +oghaANWt
 	$_[0] =~ /^:(\S+) (?:SVS2?MODE|n|v) (\S+) (\S+)$/;
@@ -677,19 +646,6 @@ sub ISUPPORT($) {
 		my ($key, $value) = split('=', $token);
 		$IRCd_capabilities{$key} = ($value ? $value : 1);
 	}
-	# Insp compatibility... :(
-	$IRCd_capabilities{"CHGHOST"} = 1;
-	$IRCd_capabilities{"CHGIDENT"} = 1;
-	$IRCd_capabilities{"CLOAKHOST"} = 1;
-	$IRCd_capabilities{"CLOAK"} = 1;
-	$IRCd_capabilities{"ADMIN"} = 'a';
-	$IRCd_capabilities{"FOUNDER"} = 'q';
-	$IRCd_capabilities{"SILENCE"} = 32; 
-	$IRCd_capabilities{"WATCH"} = 32;
-	$IRCd_capabilities{"REG"} = 1;
-	$IRCd_capabilities{"HALFOP"} = 'h';
-	$IRCd_capabilities{"INSP"} = 0;
-	# so ugly. Ugly Ugly UGLY.
 }
 
 sub STATS($) {
@@ -704,6 +660,7 @@ BEGIN {
 
 		EOS		=>	\&EOS,
 		ES		=>	\&EOS,
+
 		SERVER		=>	\&SERVER,
 		"\'"		=>	\&SERVER,
 
@@ -723,8 +680,7 @@ BEGIN {
 
 		SJOIN		=>	\&SJOIN,
 		'~'		=>	\&SJOIN,
-		FJOIN   =>   \&FJOIN,
-		FMODE   =>    \&FMODE,
+
 		MODE		=>	\&MODE,
 		G		=>	\&MODE,
 

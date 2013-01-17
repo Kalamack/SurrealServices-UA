@@ -30,14 +30,7 @@ use SrSv::IRCd::State qw($ircline $ircline_real synced initial_synced);
 
 use SrSv::Message qw(add_callback message);
 
-# FIXME
-use constant {
-	# Wait For
-	WF_NONE => 0,
-	WF_NICK => 1,
-	WF_CHAN => 2,
-	WF_ALL => 3,
-};
+use SrSv::Constants;
 
 sub addhandler($$$$;$) {
 	my ($type, $src, $dst, $cb, $po) = @_;
@@ -74,6 +67,7 @@ sub callfuncs {
 		$sync = 0;
 		$wf = $_[3];
 	}
+
 	$message = {
 		CLASS => 'IRCD',
 		TYPE => $_[0],
@@ -85,13 +79,14 @@ sub callfuncs {
 		ARGS => $args,
 		ON_FINISH => ($sync ? undef : 'SrSv::IRCd::Queue::finished'), # FIXME
 		SYNCED => [synced, initial_synced],
-		QUEUE_DEPTH => SrSv::IRCd::Queue::queue_size(),
+		QUEUE_DEPTH_HIGHPRIO => SrSv::IRCd::Queue::queue_size(WF_ALL),
+		QUEUE_DEPTH => SrSv::IRCd::Queue::queue_size(WF_MAX), # but not WF_MSG
 	};
-	if(initial_synced && ($message->{QUEUE_DEPTH} > main_conf_highqueue) && ($last_highqueue < time()-5)) {
-		ircd::privmsg(main_conf_local, main_conf_operchan, "HIGH TRAFFIC WARNING",
-			"Queue depth exceeded @{[main_conf_highqueue]}") if defined(main_conf_operchan);
-		ircd::privmsg(main_conf_local, main_conf_diag, "HIGH TRAFFIC WARNING",
-			"Queue depth exceeded @{[main_conf_highqueue]}");
+	if(initial_synced && ($message->{QUEUE_DEPTH_HIGHPRIO} > main_conf_queue_lowwater) && ($last_highqueue < time()-5)) {
+		ircd::privmsg_noloop(main_conf_local, main_conf_operchan, "HIGH TRAFFIC WARNING",
+			"Queue depth exceeded @{[main_conf_queue_lowwater]}") if defined(main_conf_operchan);
+		ircd::privmsg_noloop(main_conf_local, main_conf_diag, "HIGH TRAFFIC WARNING",
+			"Queue depth exceeded @{[main_conf_queue_lowwater]}");
 		$last_highqueue = time();
 	}
 

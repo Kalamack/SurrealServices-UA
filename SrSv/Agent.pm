@@ -39,14 +39,14 @@ use SrSv::Debug;
 use SrSv::Unreal::Tokens qw( :tokens );
 use SrSv::Unreal::Base64 qw(itob64);
 use SrSv::IRCd::State qw(synced $ircd_ready %IRCd_capabilities);
-use SrSv::IRCd::IO qw(ircsend ircsendimm );
+use SrSv::IRCd::IO qw(ircsend ircsendimm);
 use SrSv::IRCd::Event qw(addhandler);
 use SrSv::IRCd::Validate qw(valid_nick);
 use SrSv::RunLevel 'main_shutdown';
-use SrSv::IRCd::Send;
+
 # FIXME
 BEGIN { *SJB64 = \&ircd::SJB64 }
-use Data::Dumper;
+
 our %agents;
 our @defer_join;
 
@@ -68,6 +68,7 @@ sub is_agent_in_chan($$) {
 		return 0;
 	}
 }
+
 sub agent_connect($$$$$) {
 	my ($nick, $ident, $host, $modes, $gecos) = @_;
 	my $time = time();
@@ -80,10 +81,10 @@ sub agent_connect($$$$$) {
 	$agents{lc $nick}{PARMS} = [ @_ ];
 
 	$host = main_conf_local unless $host;
-	#ircsend("@{[TOK_NICK]} $nick 1 $time $ident $host ".
-		#(SJB64 ? itob64(main_conf_numeric) : main_conf_local).
-		#" 1 $modes * :$gecos");
-	ircd::agent_doconn ($nick, $ident, $host, $modes, $gecos);
+	ircsend("@{[TOK_NICK]} $nick 1 $time $ident $host ".
+		(SJB64 ? itob64(main_conf_numeric) : main_conf_local).
+		" 1 $modes * :$gecos");
+
 	foreach my $chan (@chans) {
 		ircsend(":$nick @{[TOK_JOIN]} $chan");
 		# If we tracked chanmodes for agents, that would go here as well.
@@ -128,11 +129,27 @@ sub is_invalid_agentname($$$) {
 	return undef;
 }
 
+sub agent_join($$) {
+	my ($agent, $chan) = @_;
+
+	if($agents{lc $agent}) {
+		$agents{lc $agent}{CHANS}{lc $chan} = 1;
+		ircsend(":$agent @{[TOK_JOIN]} $chan");
+	} else {
+		if($ircd_ready) {
+			print "Tried to make nonexistent agent ($agent) join channel ($chan)" if DEBUG;
+		} else {
+			print "Deferred join: $agent $chan\n" if DEBUG;
+			push @defer_join, "$agent $chan";
+		}
+	}
+}
 
 sub agent_part($$$) {
 	my ($agent, $chan, $reason) = @_;
+
 	delete($agents{lc $agent}{CHANS}{lc $chan});
-	ircd::agent_dopart ($agent, $chan, $reason);
+	ircsend(":$agent @{[TOK_PART]} $chan :$reason");
 }
 
 sub set_agent_umode($$) {
@@ -140,32 +157,12 @@ sub set_agent_umode($$) {
 
 	ircsend(":$src @{[TOK_UMODE2]} $modes");
 }
-sub agent_join($$) {
-	my ($agent, $chan) = @_;
-	my $anick;
-	if (ref ($agent) eq "HASH") {
-		$anick = $agent->{NICK};
-	}
-	else { $anick = $agent; }
-	if($agents{lc $anick}) {
-		$agents{lc $anick}{CHANS}{lc $chan} = 1;
-		ircd::agent_dojoin($agent,$chan);
-	}
-}
+
 sub agent_sync() {
 	foreach my $j (@defer_join) {
+		print "Processing join: $j\n" if DEBUG;
 		my ($agent, $chan) = split(/ /, $j);
-		if($agents{lc $agent}) {
-			$agents{lc $agent}{CHANS}{lc $chan} = 1;
-			agent_join($agents{lc $agent}, $chan);
-		} else {
-			if($ircd_ready) {
-				print "Tried to make nonexistent agent ($agent) join channel ($chan)" if DEBUG;
-			} else {
-				print "Deferred join: $agent $chan\n" if DEBUG;
-				push @defer_join, "$agent $chan";
-			}
-		}
+		agent_join($agent, $chan);
 	}
 	undef(@defer_join);
 }
@@ -219,9 +216,7 @@ sub whois_callback {
 }
 
 sub kill_callback($$$$) {
-	my ($srcUser, $dstUser, $path, $reason) = @_;
-	my $src = $srcUser->{NICK};
-	my $dst = $dstUser->{NICK};
+	my ($src, $dst, $path, $reason) = @_;
 	if (defined($agents{lc $dst})) {
 		if (defined ($agents{lc $dst}{KILLED}) and ($agents{lc $dst}{KILLED} == time())) {
 			if ($agents{lc $dst}{KILLCOUNT} > 3) {
@@ -241,9 +236,7 @@ sub kill_callback($$$$) {
 		} elsif (defined($agents{lc $src})) {
 			# Do Nothing.
 		} else {
-			my $rsUser = {NICK=>$main::rsnick,ID=>"123AAAAAA"}; #FIXME - erry
-			ircd::irckill($rsUser, $srcUser, "Do not kill services agents.");
-			#ftr they can't if the bots have +k in insp.
+			ircd::irckill($main::rsnick, $src, "Do not kill services agents.");
 		}
 
 		&agent_connect(@{$agents{lc $dst}{PARMS}}) if synced();

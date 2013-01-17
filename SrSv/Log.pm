@@ -62,14 +62,12 @@ open_log('diag', 'services.log');
 open_log('netdump', 'netdump.log') if main::NETDUMP();
 
 sub wlog($$$) {
-	
 	my ($service, $level, $text) = @_;
 
 	my $prefix;
 	$prefix = "\002\00304" if($level > LOG_INFO);
 	$prefix .= $levels[$level];
-	my $rsuser = { NICK => $main::rsnick, ID => ircd::getAgentUuid($main::rsnick) };
-	ircd::privmsg($rsuser, main_conf_diag, "$prefix\: ($service) $text");
+	ircd::privmsg($main::rsnick, main_conf_diag, "$prefix\: ($service) $text");
 	write_log('diag', '<'.$main::rsnick.'>', "$prefix\: ($service) $text");
 }
 

@@ -69,6 +69,9 @@ sub calc_synced {
 	SYNCED: {
 		foreach my $s (keys(%servers)) {
 			my $state = get_server_state($s);
+
+			print "Server: $s  State: $state\n" if DEBUG();
+
 			if(!$state) {
 				$synced = 0;
 				last SYNCED;
@@ -79,7 +82,6 @@ sub calc_synced {
 	}
 
 	{
-		print "remote $remoteserv\n";
 		my $state = get_server_state($remoteserv);
 		if(!$state) {
 			$initial_synced = 0;
@@ -91,11 +93,11 @@ sub calc_synced {
 
 sub create_server($$) {
 	my ($child, $parent) = @_;
-	print "create_server $child $parent\n";
+
 	$servers{$child} = {
 		PARENT => $parent,
 		CHILDREN => [],
-		SYNCED => 1,
+		SYNCED => 0,
 		NONCONFORMANT => isNonconformant($parent, $child),
 	};
 
@@ -111,7 +113,7 @@ sub get_server_children($) {
 
 sub set_server_state {
 	my ($server, $state) = @_;
-	print "set_server_state $server $state\n";
+
 	if(defined($state)) {
 		return if $juped_servers{$server};
 
@@ -163,7 +165,7 @@ sub isNonconformant(@) {
 
 sub get_server_state {
 	my ($server) = @_;
-	print "get_server_state $server " . $servers{$server}{SYNCED} . "\n";
+
 	return 1 if isNonconformant($server);
 
 	return $servers{$server}{SYNCED};

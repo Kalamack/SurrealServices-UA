@@ -181,6 +181,18 @@ sub kill_all_workers() {
 sub do_callback_in_child {
 	my ($callback, $message) = @_;
 
+	# this whole thing is a workaround for perl 5.12's Storable.
+	# Can't pass a regexp through Storable.
+	if(ref($callback->{TRIGGER_COND}->{DST}) || ref($callback->{TRIGGER_COND}->{SRC})) {
+		foreach my $k (qw(DST SRC)) {
+			next unless defined $callback->{TRIGGER_COND}->{$k};
+			my $v = $callback->{TRIGGER_COND}->{$k};
+			$v = "$v"; # convert regexp to string
+			$callback->{TRIGGER_COND}->{$k} = $v;
+		}
+		#use Data::Dumper;
+		#ircd::debug( split($/, Data::Dumper::Dumper($worker->{UNIT})) );
+	}
 	if(my $worker = pop @free_workers) {
 		print "Asking worker ".$worker->{NUMBER}." to call ".$callback->{CALL}."\n" if DEBUG;
 		#store_fd([$unit], $worker->{SOCKET});

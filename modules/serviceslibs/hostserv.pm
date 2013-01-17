@@ -28,17 +28,16 @@ use SrSv::Help qw( sendhelp );
 
 use SrSv::NickReg::Flags qw(NRF_NOHIGHLIGHT nr_chk_flag_user);
 use SrSv::NickReg::User qw(is_identified);
-use SrSv::IRCd::State qw($ircline synced initial_synced %IRCd_capabilities);
+
 use SrSv::MySQL '$dbh';
 use SrSv::MySQL::Glob;
 require SrSv::DB::StubGen;
 
 
-our $hsnick_default = 'HostServ1';
+our $hsnick_default = 'HostServ';
 our $hsnick = $hsnick_default;
-our $hsuser = { NICK => $hsnick, ID => ircd::getAgentUuid($hsnick) };
+
 sub init() {
-$hsuser = { NICK => $hsnick, ID => ircd::getAgentUuid($hsnick) };
 import SrSv::DB::StubGen (
 	dbh => $dbh,
 	generator => 'services_mysql_stubgen',
@@ -58,15 +57,15 @@ services_mysql_stubgen(
 }
 
 sub dispatch($$$) {
-	my ($user, $dstUser, $msg) = @_;
-	my $src = $user->{NICK};
+	my ($src, $dst, $msg) = @_;
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
-	$user->{AGENT} = $hsuser;
-	get_user_id ($user);
+
+	my $user = { NICK => $src, AGENT => $dst };
+
 	return if flood_check($user);
-	return unless (lc $dstUser->{NICK} eq lc $hsnick);
+
 	if(lc $cmd eq 'on') {
 		hs_on($user, $src, 0);
 	}
@@ -116,21 +115,16 @@ sub hs_on($$;$) {
 		notice($user, "You are not identified to \002$nick\002.");
 		return;
 	}
-	if ($IRCd_capabilities{"CHGHOST"} eq "" || $IRCd_capabilities{"CHGIDENT"} eq "" || $IRCd_capabilities{"CLOAKHOST"} eq "" || $IRCd_capabilities{"CLOAK"} eq "") {
-		notice ($user, "The IRCd is not properly configured to support vhosts. Please contact your friendly network administrators.");
-		notice ($user, "CHGHOST, CHGIDENT, CLOAKHOST and CLOAK need to be enabled for proper vhost support.");
-		return;
-	}
+	
 	my ($vident, $vhost) = get_vhost($nick);
 	unless ($vhost) {
 		notice($user, "You don't have a vHost.") unless $identify;
 		return;
 	}
-	
 	if ($vident) {
-		ircd::chgident($hsuser, $user, $vident);
+		ircd::chgident($hsnick, $src, $vident);
 	}
-	ircd::chghost($hsuser, $user, $vhost);
+	ircd::chghost($hsnick, $src, $vhost);
 
 	notice($user, "Your vHost has been changed to \002".($vident?"$vident\@":'')."$vhost\002");
 }
@@ -138,14 +132,9 @@ sub hs_on($$;$) {
 sub hs_off($) {
 	my ($user) = @_;
 	my $src = get_user_nick($user);
-	if (!$IRCd_capabilities{"CHGHOST"} || !$IRCd_capabilities{"CHGIDENT"} || !$IRCd_capabilities{"CLOAKHOST"} || !$IRCd_capabilities{"CLOAK"}) {
-		notice ($user, "The IRCd is not properly configured to support vhosts. Please contact your friendly network administrators.");
-		notice ($user, "CHGHOST, CHGIDENT, CLOAKHOST and CLOAK need to be enabled for proper vhost support.");
-		return;
-	}
+	
 	# This requires a hack that is only known to work in UnrealIRCd 3.2.6 and later.
-	# And insp!
-	ircd::reset_cloakhost($hsuser, $user);
+	ircd::reset_cloakhost($hsnick, $src);
 
 	notice($user, "vHost reset to cloakhost.");
 }
@@ -154,11 +143,6 @@ sub hs_sethost($$$) {
 	my ($user, $target, $vhost) = @_;
 	unless(adminserv::is_svsop($user, adminserv::S_OPER())) {
 		notice($user, $err_deny);
-		return;
-	}
-	if (!$IRCd_capabilities{"CHGHOST"} || !$IRCd_capabilities{"CHGIDENT"} || !$IRCd_capabilities{"CLOAKHOST"} || !$IRCd_capabilities{"CLOAK"}) {
-		notice ($user, "The IRCd is not properly configured to support vhosts. Please contact your friendly network administrators.");
-		notice ($user, "CHGHOST, CHGIDENT, CLOAKHOST and CLOAK need to be enabled for proper vhost support.");
 		return;
 	}
 	my $rootnick = nickserv::get_root_nick($target);

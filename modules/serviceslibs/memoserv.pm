@@ -46,9 +46,9 @@ use constant (
 	MAX_MEMO_LEN => 400
 );
 
-our $msnick_default = 'MemoServ1';
+our $msnick_default = 'MemoServ';
 our $msnick = $msnick_default;
-our $msuser = { NICK => $msnick, ID => ircd::getAgentUuid($msnick) };
+
 our (
 	$send_memo, $send_chan_memo, $get_chan_recipients,
 
@@ -63,12 +63,9 @@ our (
 
 	$add_ignore, $get_ignore_num, $del_ignore_nick, $list_ignore, $chk_ignore,
 	$wipe_ignore, $purge_ignore,
-	$get_first_unread
 );
 
 sub init() {
-	$msuser = { NICK => $msnick, ID => ircd::getAgentUuid($msnick) };
-	$get_first_unread = $dbh->prepare("SELECT memo.src, memo.chan, memo.time, memo.flag, memo.msg FROM memo, nickreg WHERE nickreg.nick=? AND memo.dstid=nickreg.id AND memo.flag=0 LIMIT 1");
 	$send_memo = $dbh->prepare("INSERT INTO memo SELECT ?, id, NULL, UNIX_TIMESTAMP(), NULL, ? FROM nickreg WHERE nick=?");
 	$send_chan_memo = $dbh->prepare("INSERT INTO memo SELECT ?, nickreg.id, ?, ?, NULL, ? FROM chanacc, nickreg
 		WHERE chanacc.chan=? AND chanacc.level >= ? AND chanacc.nrid=nickreg.id
@@ -123,16 +120,15 @@ sub init() {
 ### MEMOSERV COMMANDS ###
 
 sub dispatch($$$) {
-	$msuser = { NICK => $msnick, ID => ircd::getAgentUuid($msnick) };
-	my ($user, $dstUser, $msg) = @_;
+	my ($src, $dst, $msg) = @_;
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
-	$user -> {AGENT} = $msuser;
-	return unless (lc $dstUser->{NICK} eq lc $msnick);
-	get_user_id ($user);
+
+	my $user = { NICK => $src, AGENT => $dst };
+
 	return if flood_check($user);
-	if($SrSv::IRCd::State::queue_depth > main_conf_highqueue && !adminserv::is_svsop($user)) {
+	if($SrSv::IRCd::State::queue_depth > main_conf_queue_highwater && !adminserv::is_svsop($user)) {
 		notice($user, get_user_agent($user)." is too busy right now. Please try your command again later.");
 	}
 
@@ -154,10 +150,10 @@ sub dispatch($$$) {
 		}
 	}
 	elsif($cmd =~ /^read$/i) {
-		if(@args == 1 and (lc($args[0]) eq 'last' or $args[0] > 0 or (lc($args[0]) eq 'unread'))) {
+		if(@args == 1 and (lc($args[0]) eq 'last' or $args[0] > 0)) {
 			ms_read($user, $args[0]);
 		} else {
-			notice($user, 'Syntax: READ <num|LAST|UNREAD>');
+			notice($user, 'Syntax: READ <num|LAST>');
 		}
 	}
 	elsif($cmd =~ /^list$/i) {
@@ -259,23 +255,7 @@ sub ms_read($$) {
 			return;
 		}
 		@nums = ($num);
-	}
-	elsif (lc($num) eq 'unread') {
-		$get_first_unread->execute($root);
-		$get_memo_full->execute($root, $num-1);
-		unless(($from, $chan, $time, $flag, $msg) = $get_first_unread->fetchrow_array) {
-			notice($user, "You have no unread memos.");
-			return;
-		}
-		$set_flag->execute(1, $from, $root, $chan, $time);
-		my @reply;
-		push @reply, "Memo \002$num\002 from \002$from\002 ".
-			($chan ? "to \002$chan\002 " : "to \002$root\002 ").
-			"at ".gmtime2($time), $msg, ' --';
-		notice ($user, @reply);
-		return;
-	}
-	else {
+	} else {
 		@nums = makeSeqList($num);
 	}
 
@@ -434,7 +414,7 @@ sub notify($;$) {
 	my ($user, $root) = @_;
 	my (@nicks);
 
-	unless(ref($user) eq "HASH") {
+	unless(ref($user)) {
 		$user = { NICK => $user };
 	}
 
@@ -478,7 +458,7 @@ sub send_chan_memo($$$$) {
 	
 	$get_chan_recipients->execute($cn, $level);
 	while(my ($u) = $get_chan_recipients->fetchrow_array) {
-		notice({ NICK => $u, AGENT => $msuser }, 
+		notice({ NICK => $u, AGENT => $msnick }, 
 			"You have a new memo from \002$src\002 to \002$cn\002.  To read it, type: \002/ms read last\002");
 	}
 }
@@ -487,7 +467,7 @@ sub notice_all_nicks($$) {
 	my ($nick, $msg) = @_;
 
 	foreach my $u (get_nick_user_nicks $nick) {
-		notice({ NICK => $u, AGENT => $msuser }, $msg);
+		notice({ NICK => $u, AGENT => $msnick }, $msg);
 	}
 }
 

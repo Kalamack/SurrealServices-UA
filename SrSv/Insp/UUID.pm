@@ -14,11 +14,11 @@
 #       Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
-#=cut
+=cut
 
-#THIS CODE IS alpha only, and untested. Don't just trust it blindly.
+THIS CODE IS alpha only, and untested. Don't just trust it blindly.
 
-#=cut
+=cut
 
 package SrSv::Insp::UUID;
 
@@ -68,7 +68,6 @@ sub decodeSID(@) {
 	return $sidN;
 }
 sub decodeUUID($) {
-	local $SIG{__WARN__} = sub { ircd::debug (split($/, Carp::longmess(@_))) };
 	my ($UUID) = @_;
 	my @chars = split(//, $UUID);
 	#my @sidC = @chars[0..2];
@@ -99,7 +98,6 @@ sub int2chars($$) {
 	}
 }
 sub encodeUUID($) {
-	local $SIG{__WARN__} = sub { ircd::debug (split($/, Carp::longmess(@_))) };
 	my ($int) = @_;
 	my $SID_int = ($int & (SID_BITMASK)) >> UID_BITS;
 	my $UID_int = $int & UID_BITMASK;
@@ -107,15 +105,14 @@ sub encodeUUID($) {
 	int2chars($SID_int, \@SID);
 	my @UID = (0,0,0,0,0,0);
 	int2chars($UID_int, \@UID);
-	return join('', @SID,@UID);
+	print join('', @SID,@UID),"\n";
 }
 
 1;
 
-##=cut
-#my $int = decodeUUID('583AAAAAE');
-#print "$int\n";
-#print log($int)/log(2), "\n";
-#print decodeUUID('583AAAAAK');
-#print encodeUUID (1);
-#=cut
+=cut
+my $int = decodeUUID('751AAAAAA');
+print "$int\n";
+print log($int)/log(2), "\n";
+encodeUUID($int);
+=cut

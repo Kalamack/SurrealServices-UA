@@ -19,22 +19,22 @@ use strict;
 no strict 'refs';
 
 use Safe;
-use SrSv::IRCd::State qw($ircline synced initial_synced %IRCd_capabilities);
+
 use SrSv::Agent;
 use SrSv::Process::Worker 'ima_worker'; #FIXME
-use SrSv::Insp::UUID;
+
 use SrSv::Text::Format qw(columnar);
 use SrSv::Errors;
-use Data::Dumper;
 
 use SrSv::Conf2Consts qw( main services );
 
 use SrSv::User qw(get_user_nick get_user_id :flood);
 use SrSv::User::Notice;
 use SrSv::Help qw( sendhelp );
+
 use SrSv::ChanReg::Flags;
 use SrSv::NickReg::Flags qw(NRF_NOHIGHLIGHT nr_chk_flag_user);
-use Data::Dumper;
+
 use SrSv::MySQL '$dbh';
 
 use constant {
@@ -42,10 +42,14 @@ use constant {
 	F_DEAF		=> 2
 };
 
-our $bsnick_default = 'BotServ1';
+our $bsnick_default = 'BotServ';
 our $bsnick = $bsnick_default;
 our $botchmode;
-our $bsuser = { NICK => $bsnick, ID => ircd::getAgentUuid($bsnick) };
+if(!ircd::PREFIXAQ_DISABLE()) {
+	$botchmode = '+q';
+} else {
+	$botchmode = '+qo';
+}
 
 *agent = \&chanserv::agent;
 
@@ -63,7 +67,6 @@ our (
 );
 
 sub init() {
-	$bsuser = { NICK => $bsnick, ID => ircd::getAgentUuid($bsnick) };
 	$get_all_bots = $dbh->prepare("SELECT nick, ident, vhost, gecos, flags FROM bot");
 	$get_botchans = $dbh->prepare("SELECT chan, COALESCE(bot, '$chanserv::csnick') FROM chanreg WHERE bot != '' OR (flags & ". CRF_BOTSTAY() . ")");
 	$get_botstay_chans = $dbh->prepare("SELECT chan, COALESCE(bot, '$chanserv::csnick') FROM chanreg WHERE (flags & ".
@@ -92,19 +95,16 @@ sub init() {
 };
 
 sub dispatch($$$) {
-	$bsuser = { NICK => $bsnick, ID => ircd::getAgentUuid($bsnick) };
-    my ($user, $dstUser, $msg) = @_;
-	$user -> {AGENT} = $bsuser;
-	my $src = $user->{NICK};
-	my $dst = $dstUser->{NICK};
-	if(lc $dstUser->{NICK} eq lc $bsnick or lc $dstUser->{NICK} eq lc $bsnick_default ) {
-		bs_dispatch($user, $dstUser, $msg);
+        my ($src, $dst, $msg) = @_;
+	
+	if(lc $dst eq lc $bsnick or lc $dst eq lc $bsnick_default ) {
+		bs_dispatch($src, $dst, $msg);
 	}
 	elsif($dst =~ /^#/) {
 		if($msg =~ /^\!/) {
 			$has_bot->execute($dst);
 			return unless($has_bot->fetchrow_array);
-			chan_dispatch($user, $dst, $msg);
+			chan_dispatch($src, $dst, $msg);
 		} else {
 			chan_msg($src, $dst, $msg);
 		}
@@ -120,13 +120,12 @@ sub dispatch($$$) {
 ### BOTSERV COMMANDS ###
 
 sub bs_dispatch($$$) {
-	my ($user, $dst, $msg) = @_;
+	my ($src, $dst, $msg) = @_;
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
 
-	$user->{AGENT} = $dst;
-	my $src = $user->{NICK};
+	my $user = { NICK => $src, AGENT => $dst };
 
 	return if flood_check($user);
 
@@ -252,10 +251,11 @@ sub bs_assign($$$) {
 		agent_part($oldbot, $cn, "Unassigned by \002$src\002.");
 	}
 
+	
+	
 	if($bot) {
 		$assign_bot->execute($bot, $cn);
-		my $botUser = { NICK=>$bot, ID=>ircd::getAgentUuid ($bot) };
-		bot_join($chan, $botUser);
+		bot_join($chan, $bot);
 		notice($user, "\002$bot\002 now assigned to \002$cn\002.");
 	} else {
 		$unassign_bot->execute($cn);
@@ -316,12 +316,8 @@ sub bs_add($$$$$) {
 	ircd::sqline($botnick, $services::qlreason);
 	agent_connect($botnick, $botident, $bothost, '+pqBSrz', $botgecos);
 	agent_join($botnick, main_conf_diag);
-	my $bot = { NICK => $botnick};
-	get_user_id ($bot);
-	my $rsuser = { NICK => $main::rsnick };
-	get_user_id ($rsuser);
-	$rsuser->{ID} = ($rsuser->{ID});
-	ircd::setmode($rsuser, main_conf_diag, '+h', $bot);
+	ircd::setmode($main::rsnick, main_conf_diag, '+h', $botnick);
+
 	notice($user, "Bot $botnick connected.");
 }
 
@@ -460,21 +456,14 @@ sub bs_change($$$$$$) {
 	ircd::sqline($botnick, $services::qlreason);
 	agent_connect($botnick, $botident, $bothost, '+pqBSrz', $botgecos);
 	agent_join($botnick, main_conf_diag);
-	my $rsnick = $main::rsnick;
-	my $rsuser = { NICK => $main::rsnick };
-	get_user_id ($rsuser);
-	$rsuser->{ID} = ($rsuser->{ID});
-	my $bot = { NICK => $botnick };
-	get_user_id ($bot);
-	ircd::setmode($rsuser, main_conf_diag, '+h', $bot);
+	ircd::setmode($main::rsnick, main_conf_diag, '+h', $botnick);
 
 	notice($user, "Bot $botnick connected.");
 
 	$get_bots_chans->execute($oldnick);
 	while(my ($cn) = $get_bots_chans->fetchrow_array()) {
 		my $chan = { CHAN => $cn };
-		my $botUser = { NICK=>$botnick, ID=>ircd::getAgentUuid($botnick) };
-		bot_join($chan, $botUser)
+		bot_join($chan, $botnick)
 			if chanserv::get_user_count($chan) or cr_chk_flag($chan, CRF_BOTSTAY(), 1);
 	}
 	$get_bots_chans->finish();
@@ -491,14 +480,14 @@ sub bs_change($$$$$$) {
 ### CHANNEL COMMANDS ###
 
 sub chan_dispatch($$$) {
-	my ($user, $cn, $msg) = @_;
-	my $src = $user->{NICK};
+	my ($src, $cn, $msg) = @_;
+
 	my @args = split(/\s+/, $msg);
 	my $cmd = lc(shift @args);
 	$cmd =~ s/^\!//;
+
 	my $chan = { CHAN => $cn };
-	$user->{AGENT} = agent($chan);
-	my $chan = { CHAN => $cn };
+	my $user = { NICK => $src, AGENT => agent($chan) };
 
 	my %cmdhash = (
 		'voice'		=>	\&give_ops,
@@ -586,11 +575,13 @@ sub chan_dispatch($$$) {
 		't'		=>	\&topic,
 
 		'why'		=>	\&why,
+		'tempban' => \&tempban,
+		'tmpban' => \&tempban,
+		"tb" => \&tempban,
 	);
 
 	sub give_ops {
 		my ($user, $chan, $cmd, undef, @args) = @_;
-		
 		chanserv::cs_setmodes($user, $cmd, $chan, @args);
 	}
 	sub up {
@@ -615,6 +606,16 @@ sub chan_dispatch($$$) {
 		my ($user, $chan, $cmd, undef, @args) = @_;
 		my $target = shift @args or return;
 		chanserv::cs_kick($user, $chan, $target, 0, join(' ', @args));
+	}
+	sub tempban {
+		my ($user, $chan, $cmd, undef, @args) = @_;
+       
+        my $cn = $chan->{CHAN};
+        use Data::Dumper;
+
+        unshift @args, $cn;
+        print ("ARGS " . Dumper (@args));
+		chanserv::cs_tempban($user, join(' ', @args));
 	}
 	sub kickban {
 		my ($user, $chan, $cmd, undef, @args) = @_;
@@ -760,24 +761,28 @@ sub bot_say($$$) {
 ### BOT COMMANDS ###
 
 sub bot_dispatch($$$) {
-    my ($user, $bot, $msg) = @_;
+    my ($src, $bot, $msg) = @_;
+    
     my ($cmd, $cn, $botmsg) = split(/ /, $msg, 3);
-	my $src = $user->{NICK};
+
+    my $user = { NICK => $src, AGENT => $bot };
     my $chan = { CHAN => $cn };
+
     return if flood_check($user);
+    
     if ($cmd =~ /^join$/i) {
-		if (adminserv::can_do($user, 'BOT')) {
-			agent_join($bot, $cn);
-		} else { 
-			notice($user, $err_deny);
-		}
+	    if (adminserv::can_do($user, 'BOT')) {
+	    agent_join($bot, $cn);
+	} else { 
+	    notice($user, $err_deny);
+	}
     }
     elsif ($cmd =~ /^part$/i) {
-		if (adminserv::can_do($user, 'BOT')) {
-			agent_part($bot, $cn, "$src requested part");
-		} else { 
-			notice($user, $err_deny);
-		}
+	if (adminserv::can_do($user, 'BOT')) {
+	    agent_part($bot, $cn, "$src requested part");
+	} else { 
+	    notice($user, $err_deny);
+	}
     }
     elsif ($cmd =~ /^say$/i) {
     	bot_say($user, $chan, $botmsg);
@@ -832,11 +837,8 @@ sub register() {
 	while(my ($nick, $ident, $vhost, $gecos, $flags) = $get_all_bots->fetchrow_array) {
 		agent_connect($nick, $ident, $vhost, '+pqBSrz'.(($flags & F_DEAF())?'d':''), $gecos);
 		ircd::sqline($nick, $services::qlreason);
-		my $bot = { NICK => $nick, ID=>ircd::getAgentUuid($nick) };
 		agent_join($nick, main_conf_diag);
-		my $rsuser = { NICK => $main::rsnick };
-		get_user_id ($rsuser);
-		ircd::setmode($rsuser, main_conf_diag, '+h', $bot);
+		ircd::setmode($main::rsnick, main_conf_diag, '+h', $nick);
 	}
 }
 
@@ -845,13 +847,10 @@ sub eos() {
 	while(my ($cn, $nick) = $get_botchans->fetchrow_array) {
 		my $chan = { CHAN => $cn };
 		if(chanserv::get_user_count($chan)) {
-			my $botUser = { NICK=>$nick };
-			get_user_id ($botUser);
-			bot_join($chan, $botUser);
+			bot_join($chan, $nick);
 		}
 		elsif(cr_chk_flag($chan, CRF_BOTSTAY(), 1)) {
-			my $botUser = { NICK=>$nick, ID=>ircd::getAgentUuid($nick) };
-			bot_join($chan, $botUser);
+			bot_join($chan, $nick);
 			my $modelock = chanserv::get_modelock($chan);
 			ircd::setmode(main_conf_local, $cn, $modelock) if $modelock;
 		}
@@ -873,35 +872,33 @@ sub unset_flag($$) {
 }
 
 sub bot_join($;$) {
-	my ($chan, $bot) = @_;
+	my ($chan, $nick) = @_;
+
 	my $cn = $chan->{CHAN};
-	$bot = agent($chan) unless $bot;
-	my $nick = $bot->{NICK};
+
+	$nick = agent($chan) unless $nick;
+	
 	unless(is_agent_in_chan($nick, $cn)) {
-		agent_join($bot, $cn);
-		my $bot2 = { NICK => $nick, ID => ircd::getAgentUuid($nick), UID=>ircd::getAgentUuid($nick) };
-		if(!ircd::PREFIXAQ_DISABLE() && $IRCd_capabilities{"FOUNDER"} ne "" && $IRCd_capabilities{"ADMIN"} ne "") {
-			$botchmode = '+q';
-		} else {
-			$botchmode = '+o';
-		}
-		ircd::setmode($bot2, $cn, $botchmode, $bot2 );
+		agent_join($nick, $cn);
+		ircd::setmode($nick, $cn, $botchmode, $nick.(ircd::PREFIXAQ_DISABLE() ? ' '.$nick : '') );
 	}
 }
 
 sub bot_part_if_needed($$$;$) {
-	my ($u, $chan, $reason, $empty) = @_;
+	my ($nick, $chan, $reason, $empty) = @_;
 	my $cn = $chan->{CHAN};
 	my $bot = get_chan_bot($chan);
-	$u = agent($chan) unless $u;
-	my $nick = $u->{NICK};
+	$nick = agent($chan) unless $nick;
+
 	return if (lc $chanserv::enforcers{lc $cn} eq lc $nick);
+
 	if(is_agent_in_chan($nick, $cn)) {
 		if(lc $bot eq lc $nick) {
 			if(cr_chk_flag($chan, CRF_BOTSTAY(), 1) or ($empty != 1 or chanserv::get_user_count($chan))) {
 				return;
 			}
 		}
+
 		agent_part($nick, $cn, $reason);
 	}
 }

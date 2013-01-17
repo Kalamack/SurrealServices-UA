@@ -38,27 +38,35 @@ sub TIEHASH {
 sub STORE {
 	my ($self, $key, $value) = @_;
 
-	print "Store \%" . $$self . "\n" if SrSv::Shared::DEBUG;
+#	print "Store \%" . $$self . "\n" if SrSv::Shared::DEBUG;
 	return ${$$self}{$key} = $value;
 }
 
 sub FETCH {
 	my ($self, $key) = @_;
 
-	print "Fetch \%" . $$self . "\n" if SrSv::Shared::DEBUG;
+#	print "Fetch \%" . $$self . "\n" if SrSv::Shared::DEBUG;
 	return ${$$self}{$key};
 }
 
 sub DELETE {
 	my ($self, $key) = @_;
 
+	print "DELETE \%" . $$self . "{$key}\n" if SrSv::Shared::DEBUG;
 	return delete(${$$self}{$key});
 }
 
 sub CLEAR {
 	my ($self) = @_;
-
+	print "CLEAR \%" . $$self . "\n" if SrSv::Shared::DEBUG;
+=cut
+	foreach my $key (keys %{$$self}) {
+		delete ($$self->{$key});
+	}
 	return %{$$self} = ();
+=cut
+	$$self = {};
+	return %{$$self};
 }
 
 sub EXISTS {

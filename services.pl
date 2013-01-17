@@ -40,7 +40,7 @@ BEGIN {
 }
 # FIXME: remove the chdir call!
 chdir PREFIX;
-use lib PREFIX;
+use lib PREFIX, "@{[PREFIX]}/CPAN";
 
 die("Please don't run services as root!\n") if $< eq 0;
 
@@ -94,7 +94,7 @@ STDOUT->autoflush(1);
 STDERR->autoflush(1);
 
 our $progname = 'SurrealServices';
-our $version = '0.5.0-pre';
+our $version = '0.4.3-pre';
 our $extraversion = 'configured for UnrealIRCd 3.2.8.1';
 
 #FIXME: Figure out where $rsnick belongs and update all references
@@ -110,7 +110,7 @@ print "Starting $progname $version.\n";
 	my $newestSchema = find_newest_schema();
 	if($schemaVer != $newestSchema) {
 		print "Found schema version ($schemaVer). Expected ($newestSchema). Did you run db-setup.pl ?\n";
-		die;
+		die unless COMPILE_ONLY;
 	}
 }
 

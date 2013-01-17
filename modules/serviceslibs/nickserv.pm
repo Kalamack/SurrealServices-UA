@@ -46,9 +46,9 @@ use SrSv::Hash::Passwords;
 use SrSv::NickControl::Enforcer qw(%enforcers);
 
 use SrSv::Email;
-use SrSv::Insp::UUID;
+
 use SrSv::Util qw( makeSeqList );
-use SrSv::IRCd::Send qw (getAgentRevUuid ircd::getAgentUuid);
+
 use SrSv::Debug;
 
 use SrSv::NickReg::NickText;
@@ -56,7 +56,7 @@ use SrSv::NickReg::NickText;
 use SrSv::IPv6;
 
 require SrSv::MySQL::Stub;
-use Data::Dumper;
+
 use constant {
 	# Clone exception max limit.
 	# This number typically means infinite/no-limit.
@@ -76,9 +76,9 @@ use constant {
 	MAX_PROFILE_LEN	=> 250,
 };
 
-our $nsnick_default = 'NickServ1';
+our $nsnick_default = 'NickServ';
 our $nsnick = $nsnick_default;
-our $nsuser = { NICK => $nsnick, ID => ircd::getAgentUuid($nsnick) }; #FIXME - erry
+
 our $cur_lock;
 our $cnt_lock = 0;
 
@@ -110,11 +110,11 @@ our %protect_level = (
 );
 	
 our (
-	$nick_check, $nick_checkExists,
-	$nick_create, $nick_create2, $nick_create_old,	$nick_change, $nick_quit, $nick_delete, $nick_id_delete,
+	$nick_check,
+	$nick_create, $nick_create_old,	$nick_change, $nick_quit, $nick_delete, $nick_id_delete,
 	$get_quit_empty_chans, $nick_chan_delete, $chan_user_partall,
 	$get_hostless_nicks,
-	$id_change,
+
 	$get_squit_lock, $squit_users, $squit_nickreg, $get_squit_empty_chans, $squit_lastquit,
 
 	$del_nickchg_id, $add_nickchg, $reap_nickchg,
@@ -178,28 +178,16 @@ our (
 	$set_authcode_ntf, $get_authcode_ntf,
 
 	$get_nicks_by_email,
-
-	$nick_deleteChanUser, $nick_deleteNickCh, $nick_deleteNickId,
-	$id_delUser, $nick_delUser,
 );
 
 sub init() {
-	$nsuser = { NICK => $nsnick, ID => ircd::getAgentUuid($nsnick) }; 
 	$nick_check = $dbh->prepare("SELECT id FROM user WHERE nick=? AND online=0 AND time=?");
-	$nick_checkExists = $dbh -> prepare ("SELECT nick FROM user WHERE id=? AND time=?");
-	$nick_deleteChanUser = $dbh -> prepare ("DELETE FROM chanuser WHERE nickid=?");
-	$nick_deleteNickCh = $dbh -> prepare ("DELETE FROM nickchg WHERE nickid=?");
-	$nick_deleteNickId = $dbh -> prepare ("DELETE FROM nickid WHERE id=?");
-	$id_delUser = $dbh->prepare ("DELETE FROM user WHERE id=?");
-	$nick_delUser = $dbh->prepare ("DELETE FROM user WHERE nick=?");
 	$nick_create = $dbh->prepare("INSERT INTO user SET nick=?, time=?, inval=0, ident=?, host=?, vhost=?, server=?, modes=?,
-		gecos=?, flags=?, cloakhost=?, online=1");
-	$nick_create2 = $dbh->prepare("INSERT INTO user SET id=?, nick=?, time=?, inval=0, ident=?, host=?, vhost=?, server=?, modes=?,
 		gecos=?, flags=?, cloakhost=?, online=1");
 #	$nick_create = $dbh->prepare("INSERT INTO user SET id=(RAND()*294967293)+1, nick=?, time=?, inval=0, ident=?, host=?, vhost=?, server=?, modes=?, gecos=?, flags=?, cloakhost=?, online=1");
 	$nick_create_old = $dbh->prepare("UPDATE user SET nick=?, ident=?, host=?, vhost=?, server=?, modes=?, gecos=?,
 		flags=?, cloakhost=?, online=1 WHERE id=?");
-	$nick_change = $dbh->prepare("UPDATE user SET nick=? WHERE nick=?");
+	$nick_change = $dbh->prepare("UPDATE user SET nick=?, time=? WHERE nick=?");
 	$nick_quit = $dbh->prepare("UPDATE user SET online=0, quittime=UNIX_TIMESTAMP() WHERE nick=?");
 	$nick_delete = $dbh->prepare("DELETE FROM user WHERE nick=?");
 	$nick_id_delete = $dbh->prepare("DELETE FROM nickid WHERE id=?");
@@ -658,19 +646,18 @@ our %high_priority_cmds = (
 );
 
 sub dispatch($$$) {
-	$nsuser = { NICK => $nsnick, ID => ircd::getAgentUuid($nsnick) }; 
-	my ($user, $dstUser, $msg) = @_;
-	return unless (lc $dstUser->{NICK} eq lc $nsnick);
+	my ($src, $dst, $msg) = @_;
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
-	get_user_id ($user);
-	my $src = $user->{NICK};
-	$user->{AGENT} = $nsuser;
+
+	my $user = { NICK => $src, AGENT => $dst };
+
 	return if flood_check($user);
+
 	if(!defined($high_priority_cmds{lc $cmd}) &&
 		!adminserv::is_svsop($user) &&
-		$SrSv::IRCd::State::queue_depth > main_conf_highqueue)
+		$SrSv::IRCd::State::queue_depth > main_conf_queue_highwater)
 	{
 		notice($user, get_user_agent($user)." is too busy right now. Please try your command again later.");
 		return;
@@ -921,8 +908,8 @@ sub ns_identify($$$;$) {
 				notice($user, "Cannot only change case of nick");
 				return;
 			}
-			ircd::svsnick($nsuser, $user, $nick);
-			ircd::setumode($nsuser, $user, '+r');
+			ircd::svsnick($nsnick, $src, $nick);
+			ircd::setumode($nsnick, $nick, '+r');
 			return 1;
 		}
 	}
@@ -969,7 +956,7 @@ sub ns_logout($) {
 	$update_lastseen->execute($uid);
 	$logout->execute($uid);
 	delete($user->{NICKFLAGS});
-	ircd::nolag($nsnick, '-', $user);
+	ircd::nolag($nsnick, '-', get_user_nick($user));
 	notice($user, 'You are now logged out');
 	services::ulog($nsnick, LOG_INFO(), "used NickServ LOGOUT", $user);
 }
@@ -1051,9 +1038,7 @@ my @ghostbusters_quotes = (
 
 	} else {
 		my $ghostbusters = @ghostbusters_quotes[int rand(scalar(@ghostbusters_quotes))];
-		my $baduser = {NICK => $nick};
-		get_user_id ($baduser);
-		ircd::irckill($nsuser, $baduser, "GHOST command used by $src ($ghostbusters)");
+		ircd::irckill($nsnick, $nick, "GHOST command used by $src ($ghostbusters)");
 		notice($user, "Your ghost has been disconnected");
 		services::ulog($nsnick, LOG_INFO(), "used NickServ GHOST on $nick", $user);
 		#nick_delete($nick);
@@ -1106,13 +1091,13 @@ sub ns_register($$$) {
 		else {
 			$identify->execute($uid, $src); $identify->finish();
 			notice($user, 'You are now registered and identified.');
-			ircd::setumode($nsuser, $user, '+r');
+			ircd::setumode($nsnick, $src, '+r');
 		}
 		
 		$id_update->execute($src, $uid); $id_update->finish();
 		services::ulog($nsnick, LOG_INFO(), "registered $src (email: $email)".
 			(services_conf_validate_email ? ' requires email validation code' : ''),
-			$src);
+			$user);
 	} else {
 		$unlock_tables->execute; $unlock_tables->finish;
 		notice($user, 'Your nickname has already been registered.');
@@ -1531,7 +1516,7 @@ sub ns_set($$$$) {
 			$del_nicktext->execute(NTF_UMODE, $target); $del_nicktext->finish(); # don't allow dups
 			$set_umode_ntf->execute($modes, $target); $set_umode_ntf->finish();
 			foreach my $usernick (get_nick_user_nicks $target) {
-				ircd::setumode($nsuser, $user, $modes)
+				ircd::setumode($nsnick, $usernick, $modes)
 			}
 
 			my @out;
@@ -1861,10 +1846,6 @@ sub ns_watch($$$;$) {
 	
 	if ($cmd =~ /^add$/i) {
 		my $max_watches = $IRCd_capabilities{WATCH}; # load here for caching.
-		if ($max_watches eq "") {
-			notice ($user, "The IRCd is not configured to support WATCH. Please contact your friendly network administrators.");
-			return;
-		}
 		if(count_watches($root) >= $max_watches) {
 			notice($user, "WATCH list for $target full, there is a limit of $max_watches. Please trim your list.");
 			return;
@@ -1886,22 +1867,18 @@ sub ns_watch($$$;$) {
 		}
 
 		$set_watch->execute($mask, time(), $root);
-		ircd::svswatch($nsuser, $user, "+$mask");
+		ircd::svswatch($nsnick, $src, "+$mask");
 		notice($user, "\002$mask\002 added to \002$target\002's watch list.");
 		return;
 	}
 	elsif ($cmd =~ /^del(ete)?$/i) {
 		$check_watch->execute($root, $mask);
-		if ($IRCd_capabilities{WATCH} eq "") {
-			notice ($user, "The IRCd is not configured to support WATCH. Please contact your friendly network administrators.");
-			return;
-		}
 		unless ($check_watch->fetchrow_array) {
 			notice($user, "\002$mask\002 is not in \002$target\002's watch list.");
 			return;
 		}
 		$del_watch->execute($root, $mask);
-		ircd::svswatch($nsuser, $user, "-$mask");
+		ircd::svswatch($nsnick, $src, "-$mask");
 		notice($user, "\002$mask\002 removed from \002$target\002's watch list.");
 	}
 	elsif ($cmd =~ /^list$/i) {
@@ -1959,10 +1936,6 @@ sub get_silence_by_num($$) {
 
 	if ($cmd =~ /^add$/i) {
 		my $max_silences = $IRCd_capabilities{SILENCE};
-		if ($max_silences eq "") {
-			notice ($user, "The IRCd is not configured to support SILENCE. Please contact your friendly network administrators.");
-			return;
-		}
 		if(count_silences($root) >= $max_silences) {
 			notice($user, "SILENCE list for $target full, there is a limit of $max_silences. Please trim your list.");
 			return;
@@ -1978,7 +1951,11 @@ sub get_silence_by_num($$) {
 
 		if($mask !~ /[!@.]/) {
 			my $target_user = { NICK => $mask };
-			unless(get_user_id($target_user)) {
+			if(!defined($mask) || !length($mask)) {
+				notice($user, qq{Did not specify a user or hostmask.});
+				return;
+			}
+			elsif(!get_user_id($target_user)) {
 				notice($user, qq{"\002$mask\002" is not a known user, nor a valid hostmask.});
 				return;
 			}
@@ -2014,7 +1991,7 @@ sub get_silence_by_num($$) {
 
 			$set_silence->execute($mask, time(), $expiry, $comment, $root);
 		}
-		ircd::svssilence($nsuser, $user, "+$mask");
+		ircd::svssilence($nsnick, $src, "+$mask");
 		notice($user, "\002$mask\002 added to $subj SILENCE list.");
 	}
 	elsif ($cmd =~ /^del(ete)?$/i) {
@@ -2046,7 +2023,7 @@ sub get_silence_by_num($$) {
 			push @out_masks, "-$mask";
 			push @reply, "\002$mask\002 removed from $subj SILENCE list.";
 		}
-		ircd::svssilence($nsuser, $user, @out_masks);
+		ircd::svssilence($nsnick, $src, @out_masks);
 		notice($user, @reply);
 	}
 	elsif ($cmd =~ /^list$/i) {
@@ -2098,7 +2075,7 @@ sub ns_seen($@) {
 	my ($user, @nicks) = @_;
 
 	foreach my $nick (@nicks) {
-		if(lc $nick eq lc (($user->{AGENT})->{NICK})) {
+		if(lc $nick eq lc $user->{AGENT}) {
 			notice($user, "Oh, a wise guy, eh?");
 			next;
 		}
@@ -2503,11 +2480,9 @@ sub unidentify($$;$) {
 	$nick = get_root_nick($nick);
 
 	foreach my $t (get_nick_user_nicks $nick) {
-		my $user = { NICK => $nick, AGENT => $nsuser };
-		get_user_id ($user);
-		ircd::notice($nsuser, $user, (ref $msg ? @$msg : $msg)) unless(lc $t eq lc $src);
+		ircd::notice($nsnick, $t, (ref $msg ? @$msg : $msg)) unless(lc $t eq lc $src);
 		if(is_alias_of($nick, $t)) {
-			ircd::setumode($nsuser, $user, '-r');
+			ircd::setumode($nsnick, $t, '-r');
 		}
 	}
 
@@ -2517,10 +2492,9 @@ sub unidentify($$;$) {
 # For a single alias:
 sub unidentify_single($$) {
 	my ($nick, $msg) = @_;
-	my $user = { NICK => $nick, AGENT => $nsuser };
-	get_user_id ($user);
+
 	if(is_online($nick)) {
-		ircd::setumode($nsuser, $user, '-r');
+		ircd::setumode($nsnick, $nick, '-r');
 	}
 }
 
@@ -2540,7 +2514,7 @@ sub kill_clones($$) {
 	my ($c) = $count_clones->fetchrow_array;
 
 	if($c > $lim) {
-		ircd::irckill($nsuser, $user, "Session Limit Exceeded");
+		ircd::irckill($nsnick, $src, "Session Limit Exceeded");
 		return 1;
 	}
 }
@@ -2557,6 +2531,7 @@ sub do_identify ($$$;$$) {
 	my ($user, $nick, $root, $flags, $svsnick) = @_;
 	my $uid = get_user_id($user);
 	my $src = get_user_nick($user);
+
 	$identify_ign->execute($uid, $root);
 	$id_update->execute($root, $uid);
 
@@ -2577,37 +2552,11 @@ sub do_identify ($$$;$$) {
 	$get_umode_ntf->finish();
 	if(adminserv::get_svs_level($root)) {
 		$umodes = modes::merge_umodes('+h', $umodes);
-		ircd::nolag($nsuser, '+', $user);
+		ircd::nolag($nsnick, '+', $src);
 	}
 	$umodes = modes::merge_umodes('+r', $umodes) if(is_identified($user, $src));
 
 	hostserv::hs_on($user, $root, 1);
-
-	if(my @chans = get_autojoin_ntf($nick)) {
-		ircd::svsjoin($nsuser, $user, @chans);
-	}
-
-	my $enforced;
-	if(enforcer_quit($nick)) {
-		notice($user, 'Your nick has been released from custody.');
-		$enforced = 1;
-	}
-
-	if (lc($src) eq lc($nick)) {
-		ircd::setumode($nsuser, $user, $umodes);
-		$update_nickalias_last->execute($nick); $update_nickalias_last->finish();
-	}
-	elsif($svsnick) {
-		ircd::svsnick($nsuser, $user, $nick);
-		ircd::setumode($nsuser, $user, modes::merge_umodes('+r', $umodes) );
-		# the update _should_ be taken care of in nick_change()
-		#$update_nickalias_last->execute($nick); $update_nickalias_last->finish();
-	}
-	elsif(defined $umodes) {
-		ircd::setumode($nsuser, $user, $umodes);
-	}
-
-	do_ajoin($user, $nick);
 
 	nickserv::do_svssilence($user, $root);
 	nickserv::do_svswatch($user, $root);
@@ -2620,6 +2569,27 @@ sub do_identify ($$$;$$) {
 
 	memoserv::notify($user, $root);
 	notify_auths($user, $root) if $flags & NRF_AUTH;
+
+	my $enforced;
+	if(enforcer_quit($nick)) {
+		notice($user, 'Your nick has been released from custody.');
+		$enforced = 1;
+	}
+
+	if (lc($src) eq lc($nick)) {
+		ircd::setumode($nsnick, $src, $umodes);
+		$update_nickalias_last->execute($nick); $update_nickalias_last->finish();
+	}
+	elsif($svsnick) {
+		ircd::svsnick($nsnick, $src, $nick);
+		ircd::setumode($nsnick, $nick, modes::merge_umodes('+r', $umodes) );
+		# the update _should_ be taken care of in nick_change()
+		#$update_nickalias_last->execute($nick); $update_nickalias_last->finish();
+	}
+	elsif(defined $umodes) {
+		ircd::setumode($nsnick, $src, $umodes);
+	}
+	do_ajoin($user, $nick);
 	return ($enforced ? 2 : 1);
 }
 
@@ -2705,11 +2675,8 @@ sub authcode($;$$) {
 sub get_hostmask($) {
 	my ($user) = @_;
 	my ($ident, $host);
-	my $src;
-	if (ref ($user) eq "HASH") {
-		$src = get_user_nick($user);
-	}
-	else { $src = $user; }
+	my $src = get_user_nick($user);
+	
 	($ident, $host) = get_host($user);
 
 	return "$src!$ident\@$host";
@@ -2717,15 +2684,14 @@ sub get_hostmask($) {
 
 sub guestnick($) {
 	my ($nick) = @_;
+	
 	$set_guest->execute(1, $nick);
 	my $randnick = 'Guest'.int(rand(10)).int(rand(10)).int(rand(10)).int(rand(10)).int(rand(10));
 	#Prevent collisions.
 	while (is_online($randnick)) {
 	    $randnick = 'Guest'.int(rand(10)).int(rand(10)).int(rand(10)).int(rand(10)).int(rand(10));
 	}
-	my $user = { NICK => $nick, AGENT => $nsuser };
-	get_user_id ($user);
-	ircd::svsnick($nsuser, $user, $randnick);
+	ircd::svsnick($nsnick, $nick, $randnick);
 
 	return $randnick;
 }
@@ -2826,8 +2792,7 @@ sub do_expired_silences($$) {
 
 	foreach my $user (get_nick_users $nick) {
 		$user->{AGENT} = $nsnick;
-		get_user_id ($user);
-		ircd::svssilence($nsuser, $user, map ( { '-'.$_->[0] } @entries) );
+		ircd::svssilence($nsnick, get_user_nick($user), map ( { '-'.$_->[0] } @entries) );
 		#notice($user, "The following SILENCE entries have expired: ".
 		#	join(', ', map ( { $_->[0] } @entries) ));
 		notice($user, map( { "The following SILENCE entry has expired: \002".$_->[0]."\002 ".$_->[1] } @entries ) );
@@ -2835,10 +2800,6 @@ sub do_expired_silences($$) {
 }
 sub do_svssilence($$) {
 	my ($user, $rootnick) = @_;
-	if ($IRCd_capabilities{SILENCE} eq "") {
-		notice ($user, "The IRCd is not configured to support SILENCE. Please contact your friendly network administrators.");
-		return;
-	}
 	my $target = get_user_nick($user);
 	
 	$get_silences->execute($rootnick);
@@ -2853,16 +2814,12 @@ sub do_svssilence($$) {
 		push @silences, "+$mask";
 	}
 	$get_silences->finish;
-	ircd::svssilence($nsuser, $user, @silences);
+	ircd::svssilence($nsnick, $target, @silences);
 	return;
 }
 
 sub do_svswatch($$) {
 	my ($user, $rootnick) = @_;
-	if ($IRCd_capabilities{WATCH} eq "") {
-		notice ($user, "The IRCd is not configured to support WATCH. Please contact your friendly network administrators.");
-		return;
-	}
 	my $target = get_user_nick($user);
 	
 	$get_watches->execute($rootnick);
@@ -2877,7 +2834,7 @@ sub do_svswatch($$) {
 		push @watches, "+$mask";
 	}
 	$get_watches->finish;
-	ircd::svswatch($nsuser, $user, @watches);
+	ircd::svswatch($nsnick, $target, @watches);
 	return;
 }
 
@@ -2888,12 +2845,13 @@ sub do_umode($$) {
 	$get_umode_ntf->execute($rootnick);
 	my ($umodes) = $get_umode_ntf->fetchrow_array; $get_umode_ntf->finish();
 
-	ircd::setumode($nsuser, $user, $umodes) if $umodes;
+	ircd::setumode($nsnick, $target, $umodes) if $umodes;
 	return
 }
 
 sub notify_auths($$) {
 	my ($user, $nick) = @_;
+
 	$get_num_nicktext_type->execute($nick, NTF_AUTH);
 	my ($count) = $get_num_nicktext_type->fetchrow_array(); $get_num_nicktext_type->finish();
 	notice($user, "$nick has $count channel authorizations awaiting action.", 
@@ -2907,8 +2865,8 @@ sub protect($) {
 
 	return if nr_chk_flag($nick, NRF_EMAILREG());
 	my $lev = protect_level($nick);
-	my $user = { NICK => $nick, AGENT => $nsuser };
-	get_user_id ($user);
+	my $user = { NICK => $nick, AGENT => $nsnick };
+	
 	notice($user,
 		"This nickname is registered and protected. If it is your",
 		"nick, type \002/msg NickServ IDENTIFY <password>\002. Otherwise,",
@@ -2934,14 +2892,13 @@ sub protect($) {
 sub warn_countdown($) {
 	my ($cookie)  = @_;
 	my ($nick, $rem) = split(/ /, $cookie);
-	$nsuser = { NICK => $nsnick, ID => ircd::getAgentUuid($nsnick) }; 
-	my $user = { NICK => $nick, AGENT => $nsuser };
-	get_user_id($user);
+	my $user = { NICK => $nick, AGENT => $nsnick };
+	
 	if (is_identified($user, $nick)) {
 		$update_nickalias_last->execute($nick); $update_nickalias_last->finish();
 		return;
 	}
-	elsif(!(is_online($nick)) or !(is_registered($nick))) { return; }
+	elsif(!(is_online($nick)) or !(is_registered($nick))) { return; } 
 
 	if($rem == 0) {
 		notice($user, 'Your nick is now being changed.');
@@ -2956,11 +2913,12 @@ sub warn_countdown($) {
 
 sub collide($) {
 	my ($nick) = @_;
-	my $newnick = guestnick($nick);
+	
 	ircd::svshold($nick, 60, "If this is your nick, type /NS SIDENTIFY $nick \002password\002");
 	$enforcers{lc $nick} = 1;
 	add_timer($nick, 60, __PACKAGE__, "nickserv::enforcer_delete");
-	return $newnick;
+
+	return guestnick($nick);
 }
 
 sub enforcer_delete($) {
@@ -3162,7 +3120,7 @@ sub inc_nick_inval($) {
 	$get_nick_inval->execute($id);
 	my ($nick, $inval) = $get_nick_inval->fetchrow_array;
 	if($inval > 3) {
-		ircd::irckill($nsuser, $user, 'Too many invalid passwords.');
+		ircd::irckill($nsnick, $nick, 'Too many invalid passwords.');
 		# unnecessary as irckill calls the quit handler.
 		#nick_delete($nick);
 		return 0;
@@ -3216,7 +3174,7 @@ sub check_identify($) {
 	my $nick = get_user_nick($user);
 	if(is_registered($nick)) {
 		if(is_identified($user, $nick)) {
-			ircd::setumode($nsuser, $user, '+r');
+			ircd::setumode($nsnick, $nick, '+r');
 			$update_nickalias_last->execute($nick); $update_nickalias_last->finish();
 			return 1;
 		} else {
@@ -3255,7 +3213,7 @@ sub fix_vhosts() {
 	add_timer('fix_vhosts', 5, __PACKAGE__, 'nickserv::fix_vhosts');
 	$get_hostless_nicks->execute();
 	while (my ($nick) = $get_hostless_nicks->fetchrow_array) {
-		ircd::notice($nsuser, main_conf_diag, "HOSTLESS NICK $nick");
+		ircd::notice($nsnick, main_conf_diag, "HOSTLESS NICK $nick");
 		ircd::userhost($nick);
 		ircd::userip($nick);
 	}
@@ -3276,8 +3234,8 @@ sub nick_cede($) {
 ### IRC EVENTS ###
 
 sub nick_create {
-	my ($user, $time, $ident, $host, $vhost, $server, $svsstamp, $modes, $gecos, $ip, $cloakhost) = @_;
-	my $nick = get_user_nick ($user);
+	my ($nick, $time, $ident, $host, $vhost, $server, $svsstamp, $modes, $gecos, $ip, $cloakhost) = @_;
+	my $user = { NICK => $nick };
 	get_lock($nick);
 	if ($vhost eq '*') {
 		if ({modes::splitumodes($modes)}->{x} eq '+') {
@@ -3293,27 +3251,6 @@ sub nick_create {
 	}
 
 	my $id;
-	if ($id = get_user_id( $user )) {
-		#$id = decodeUUID ($id);
-		$nick_checkExists->execute ($id, $time);
-		my $exists = $nick_checkExists -> fetchrow_array();
-		my $flags = (synced() ? UF_FINISHED() : 0);
-		unless (defined($exists)) {
-			$nick_deleteChanUser -> execute ($id);
-			$nick_deleteNickCh -> execute ($id);
-			$nick_deleteNickId -> execute ($id);
-			$id_delUser -> execute ($id);
-			$nick_delUser -> execute ($nick);
-			$nick_create2 -> execute ($id, $nick, $time, $ident, $host, $vhost, $server, $modes, $gecos, $flags, $cloakhost);
-		}
-		else {
-			$nick_create_old->execute ($nick, $ident, $host, $vhost, $server, $modes, $gecos, $flags, $cloakhost, $id);
-		}
-		$add_nickchg->execute($ircline, $nick, $nick);
-		release_lock($nick);
-		check_identify($user);
-		return $id;
-	}
 	if($svsstamp) {
 		$get_user_nick->execute($svsstamp);
 		my ($oldnick) = $get_user_nick->fetchrow_array();
@@ -3335,7 +3272,7 @@ sub nick_create {
 		while($i < 10 and !$nick_create->execute($nick, $time, $ident, $host, $vhost, $server, $modes, $gecos, $flags, $cloakhost)) { $i++ }
 		$id = get_user_id( { NICK => $nick } ); # There needs to be a better way to do this
 	}
-	ircd::setsvsstamp($nsuser, $user, $id) unless $svsstamp == $id;
+	ircd::setsvsstamp($nsnick, $nick, $id) unless $svsstamp == $id;
 
 	$add_nickchg->execute($ircline, $nick, $nick);
 
@@ -3369,18 +3306,26 @@ sub nick_create_post($) {
 }
 
 sub nick_delete($$) {
-	my ($user, $quit) = @_;
-	my $nick = $user->{NICK};
+	my ($nick, $quit) = @_;
+	my $user = { NICK => $nick };
+	
 	get_lock($nick);
+	
 	my $id = get_user_id($user);
+
 	$del_nickchg_id->execute($id); $del_nickchg_id->finish();
+
 	$quit_update->execute($quit, $id); $quit_update->finish();
 	$update_lastseen->execute($id); $update_lastseen->finish();
+
 	$get_quit_empty_chans->execute($id);
+
 	$chan_user_partall->execute($id); $chan_user_partall->finish();
 	#$nick_chan_delete->execute($id); $nick_chan_delete->finish();
 	$nick_quit->execute($nick); $nick_quit->finish();
+
 	release_lock($nick);
+
 	while(my ($cn) = $get_quit_empty_chans->fetchrow_array) {
 		chanserv::channel_emptied({CHAN => $cn});
 	}
@@ -3414,14 +3359,16 @@ sub squit($$$) {
 }
 
 sub nick_change($$$) {
-	my ($user, $new, $time) = @_;
-	my $old = $user->{NICK};
+	my ($old, $new, $time) = @_;
+
 	return if(lc $old eq lc $new);
+
 	get_lock($old);
 	nick_cede($new);
-	$nick_change->execute($new, $old);
+	$nick_change->execute($new, $time, $old);
 	$add_nickchg->execute($ircline, $new, $new);
 	release_lock($old);
+
 	if($new =~ /^guest/i) {
 		$get_guest->execute($new);
 		my ($guest) = $get_guest->fetchrow_array();
@@ -3432,26 +3379,15 @@ sub nick_change($$$) {
 		}
 		return;
 	}
-	my $user = { NICK => $new, AGENT => $nsuser };
-	get_user_id($user);
-	ircd::setumode($nsuser, $user, '-r') 
-	unless check_identify({ NICK => $new });
+	
+	ircd::setumode($nsnick, $new, '-r') 
+		unless check_identify({ NICK => $new });
 }
-sub handle_oper($) {
-	my ($user) = @_;
-	my $nick = $user->{NICK};
-	get_lock($nick);
-	my $id = get_user_id($user);
-	$get_umodes->execute($id);
-	my ($omodes) = $get_umodes->fetchrow_array;
-	$set_umodes->execute(modes::add($omodes, "o", 0), $id);
-	#this is _safe_. even an oper block with no privs gets +o
-	#it's just not passed to srsv for some reason, all we get is :UID opertype X
-	release_lock ($nick);
-}
+
 sub umode($$) {
-	my ($user, $modes) = @_;
-	my $nick = $user->{NICK};
+	my ($nick, $modes) = @_;
+	my $user = { NICK => $nick };
+
 	get_lock($nick);
 
 	my $id = get_user_id($user);
@@ -3499,11 +3435,9 @@ sub umode($$) {
 }
 
 sub killhandle($$$$) {
-	my ($srcUser, $dstUser, $path, $reason) = @_;
-	my $dst = $dstUser->{NICK};
-	my $src = $srcUser->{NICK};
+	my ($src, $dst, $path, $reason) = @_;
 	unless (is_agent($dst)) {
-		nick_delete($dstUser, "Killed ($src ($reason))");
+		nick_delete($dst, "Killed ($src ($reason))");
 	}
 }
 

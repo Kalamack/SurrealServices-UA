@@ -28,8 +28,8 @@ BEGIN {
 	require constant; import constant(\%constants);
 }
 chdir PREFIX;
-use lib PREFIX;
-		
+use lib PREFIX, "@{[PREFIX]}/CPAN";
+
 use SrSv::Conf 'sql';
 
 $dbh = DBI->connect('DBI:mysql:'.$sql_conf{'mysql-db'}, $sql_conf{'mysql-user'}, $sql_conf{'mysql-pass'}, 

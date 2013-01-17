@@ -31,8 +31,9 @@ BEGIN { our @EXPORT_OK = qw(ircd_enqueue queue_size) }
 
 use SrSv::Debug;
 use SrSv::Message qw(message);
+use SrSv::Constants qw( WF_MAX );
 
-our @queue = map [], 0..3; # 3 is the maximum WF value
+our @queue = map [], 0..WF_MAX;
 
 sub ircd_enqueue($) {
 	my ($message) = @_;
@@ -52,9 +53,15 @@ sub ircd_enqueue($) {
 	}
 }
 
-sub queue_size() {
+sub queue_size(;$) {
+	my ($depth) = @_;
+	if(!$depth) {
+		$depth = WF_MAX;
+	}
 	my $r;
-	foreach (@queue) { $r += @$_ }
+	for(my $i = 0; $i < $depth; ++$i) {
+		$r += scalar @{$queue[$i]};
+	}
 	return $r;
 }
 

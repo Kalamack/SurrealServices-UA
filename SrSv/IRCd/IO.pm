@@ -19,7 +19,7 @@ package SrSv::IRCd::IO;
 use strict;
 
 use Exporter 'import';
-BEGIN { our @EXPORT_OK = qw(ircd_connect ircd_disconnect ircsendimm ircsend ircd_flush_queue ) }
+BEGIN { our @EXPORT_OK = qw(ircd_connect ircd_disconnect ircsendimm ircsend ircd_flush_queue) }
 
 use constant {
 	NL => "\015\012",
@@ -27,7 +27,7 @@ use constant {
 
 use Errno ':POSIX';
 use Event;
-use SrSv::Conf 'main';
+
 use SrSv::Process::InParent qw(irc_connect ircsend ircsendimm ircd_flush_queue);
 use SrSv::Process::Worker qw(ima_worker);
 use SrSv::Debug;

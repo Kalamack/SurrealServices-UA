@@ -32,7 +32,7 @@ use SrSv::Help qw( sendhelp );
 use SrSv::MySQL '$dbh';
 use SrSv::MySQL::Glob;
 
-use SrSv::Shared qw(%conf %torip %unwhois);
+use SrSv::Shared qw(%conf $torip %unwhois);
 
 use SrSv::Process::InParent qw(list_conf loadconf saveconf update_tor_list);
 
@@ -226,7 +226,7 @@ sub mk_banreason($$) {
 sub check_blacklists($$) {
 	my ($rnick, $ip) = @_;
 	
-	if(initial_synced and $enabletor && $torip{$ip}) {
+	if(initial_synced and $enabletor && $torip->{$ip}) {
 		if (lc $enabletor eq lc 'vhost') {
 			ircd::chghost($sbnick, $rnick, misc::gen_uuid(1, 20).'.session.tor');
 		} else {
@@ -268,14 +268,23 @@ sub update_tor_list() {
 	# path may be a local one if you run a tor-client.
 	# most configs are /var/lib/tor/cached-directory
 	my %newtorip;
-	foreach my $torIP (getTorRouters($conf{'TorServer'})) {
+	my @entries;
+	local $SIG{__DIE__} = undef;
+	eval {
+		@entries = getTorRouters($conf{'TorServer'});
+	};
+	if($@) {
+		ircd::debug("SecurityBot failed to load TOR data", $@);
+		return;
+	}
+	foreach my $torIP (@entries) {
 		$newtorip{$torIP} = 1;
 	}
 
 	my $torcount = scalar(keys(%newtorip));
 
 	if($torcount > 0) {
-		%torip = %newtorip;
+		$torip = \%newtorip;
 		diagmsg( " -- Finished loading Tor server list - $torcount servers found.");
 	} else {
 		diagmsg( " -- Failed to load Tor server list, CHECK YOUR TorServer SETTING.");

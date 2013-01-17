@@ -31,17 +31,23 @@ BEGIN { our @EXPORT = qw( getTorRouters ); }
 
 sub openURI($) {
 	my ($URI) = @_;
-	my $fh;
+	my $data;
 	if($URI =~ s/^file:\/\///i) {
 		use IO::File;
-		$fh = IO::File->new($URI, 'r') or die;
+		my $fh = IO::File->new($URI, 'r') or die;
+		return $fh;
 	} else {
 	# assume HTTP/FTP URI
-		use IO::Pipe;
-		$fh = IO::Pipe->new();
+=cut		use IO::Pipe;
+		my $fh = IO::Pipe->new();
 		$fh->reader(qq(wget -q -O - $URI)) or die;
+=cut
+		use WWW::Mechanize;
+		my $mech = WWW::Mechanize->new();
+		$mech->get($URI) or die $!;
+		my $content = $mech->content;
+		return $content;
 	}
-	return $fh;
 }
 
 our %TOR_cmdhash;
@@ -58,7 +64,7 @@ BEGIN {
 sub parseTorRouterList($) {
 	my ($fh) = @_;
 	our (%currentRouter, @routerList);
-	foreach my $l (<$fh>) {
+	foreach my $l (ref($fh) ? <$fh> : split($/, $fh)) {
 		my ($tok, undef) = split(' ', $l, 2);
 		#print "$l";
 		chomp $l;

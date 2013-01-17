@@ -15,21 +15,20 @@
 #	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 package ircd;
 
-use constant { TS6_UID => 0 };
-
 use strict;
+
 use IO::Socket::INET;
 use Event;
 use Carp;
 use MIME::Base64;
-use Data::Dumper;
+
 use SrSv::Conf 'main';
 use SrSv::Conf::main;
 use SrSv::Conf2Consts qw( main );
+
 use SrSv::Debug;
 use SrSv::Log;
-use Exporter 'import';
-our @EXPORT = qw (agent_doconn getUuid getRevUuid setUuid setRevUuid);
+
 # FIXME
 use constant {
 	MAXBUFLEN => 510,
@@ -60,7 +59,7 @@ use SrSv::IRCd::State qw($ircline $remoteserv $ircd_ready synced initial_synced 
 
 use SrSv::Unreal::Modes qw(@opmodes %opmodes $scm $ocm $acm);
 use SrSv::Unreal::Tokens qw( :tokens );
-use SrSv::IRCd::Parse qw(parse_tkl parse_addline);
+use SrSv::IRCd::Parse qw(parse_tkl);
 use SrSv::Unreal::Base64 qw(itob64 b64toi);
 
 use SrSv::Text::Format qw( wordwrap );
@@ -73,24 +72,12 @@ our %defer_mode;
 our %preconnect_defer_mode;
 our @userkill;
 our $unreal_protocol_version;
-our $count = 65;
-our %uuids; #NickServ -> AAAAAA
-our %reverse_uuids; #AAAAAA -> NickServ
+
 addhandler('SEOS', undef(), undef(), 'ircd::eos', 1);
 addhandler('NETINFO', undef(), undef(), 'ircd::netinfo', 1);
 addhandler('VERSION', undef(), undef(), 'ircd::version', 1);
 addhandler('SERVER', undef(), undef(), 'ircd::handle_server', 1);
-sub getAgentRevUuid($) {
-        return undef;
-}
-sub getAgentUuid($) {
-        return undef;
-}
-sub setAgentRevUuid ($$) {
-}
-sub setAgentUuid ($$) {
 
-}
 sub serv_connect() {
 	my $remote = main_conf_remote;
 	my $port = main_conf_port;
@@ -109,7 +96,6 @@ sub serv_connect() {
 	%defer_mode = ();
 }
 
-
 # Helper Functions
 
 sub handle_server($$$$;$$$) {
@@ -119,11 +105,10 @@ sub handle_server($$$$;$$$) {
 	$unreal_protocol_version = $protocol_version if defined $protocol_version;
 }
 
-
-
 # Handler functions
+
 sub pong($$$) {
-    my ($src, $cookie, $dst) = @_;
+        my ($src, $cookie, $dst) = @_;
 	# This will only make sense if you remember that
 	# $src is where it came from, $dst is where it went (us)
 	# we're basically bouncing it back, but changing from PING to PONG.
@@ -131,14 +116,15 @@ sub pong($$$) {
 		# $dst is always $main_conf{local} anyway...
 		# this is only valid b/c we never have messages routed THROUGH us
 		# we are always an end point.
-		ircsendimm(":$dst PONG $src :$cookie");
+		ircsendimm(":$dst @{[TOK_PONG]} $src :$cookie");
 	}
 	else {
-		ircsendimm("PONG :$src");
+		ircsendimm("@{[TOK_PONG]} :$src");
         }
 }
+
 sub eos {
-	print "GOT EOS\n\n";
+	print "GOT EOS\n\n" if DEBUG;
 
 	#foreach my $k (keys %servers) {
 	#	print "Server: $k ircline: ",$servers{$k}[0], " state: ", $servers{$k}[1], "\n";
@@ -146,8 +132,8 @@ sub eos {
 	#print "Synced: ", synced(), "\n\n";
 	#exit;
 	
-	ircsendimm(':'.$main_conf{local}.' EOS');
-	ircsendimm(':'.$main_conf{local}.' VERSION');
+	ircsendimm(':'.main_conf_local.' '.TOK_EOS, 'VERSION');
+
 	agent_sync();
 	flushmodes(\%preconnect_defer_mode);
 	ircd_flush_queue();
@@ -156,15 +142,14 @@ sub eos {
 }
 
 sub netinfo($$$$$$$$) {
-	ircsendimm('NETINFO 0 '.time." $_[2] $_[3] 0 0 0 :$_[7]");
+	ircsendimm(TOK_NETINFO.' 0 '.time." $_[2] $_[3] 0 0 0 :$_[7]");
 	$main_conf{network} = $_[7];
 }
 
 sub tssync {
-	ircsendimm((SJB64 ? '@'.itob64($main_conf{numeric}) : ':'.$main_conf{local})." TSCTL SVSTIME ".time);
+	ircsendimm((SJB64 ? '@'.itob64(main_conf_numeric) : ':'.main_conf_local)." @{[TOK_TSCTL]} SVSTIME ".time);
 }
 
-=cut
 sub parse_sjoin($$$$) {
 	my ($server, $ts, $cn, $parms) = @_;
 	my (@users, @bans, @excepts, @invex, @blobs, $blobs, $chmodes, $chmodeparms);
@@ -204,137 +189,114 @@ sub parse_sjoin($$$$) {
 	
 	return ($server, $cn, $ts, $chmodes, $chmodeparms, \@users, \@bans, \@excepts, \@invex);
 }
-=cut
 
 # Send Functions
 
 sub kick($$$$) {
 	my ($src, $chan, $target, $reason) = @_;
-	$src = $main_conf{local} unless initial_synced();
-	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	ircsend(":$srcN @{[TOK_KICK]} $chan $targetN :$reason");
-	callfuncs('KICK', 0, 2, [$srcN, $chan, $targetN, $reason]);
+	$src = main_conf_local unless initial_synced();
+	ircsend(":$src @{[TOK_KICK]} $chan $target :$reason");
+#	thread::ircrecv(":$src @{[TOK_KICK]} $chan $target :$reason");
+	callfuncs('KICK', 0, 2, [$src, $chan, $target, $reason]);
 }
 
 sub invite($$$) {
 	my ($src, $chan, $target) = @_;
-	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	ircsend(":$srcN @{[TOK_INVITE]} $targetN $chan 0");
+	#:SecurityBot INVITE tabris #channel
+	ircsend(":$src @{[TOK_INVITE]} $target $chan");
 }
 
 sub ping {
 #	if(@_ == 1) {
-		ircsend(':'.$main_conf{local}.' PING :'.$main_conf{local});
+		ircsend(':'.main_conf_local.' '.TOK_PING.' :'.main_conf_local);
 #	} else {
-#		ircsend(':'.$_[2].' '.$tkn{PONG}[$tkn].' '.$_[0].' :'.$_[1]);
+#		ircsend(':'.$_[2].' '.TOK_PONG.' '.$_[0].' :'.$_[1]);
 #	}
 }
 
-sub privmsg($$@) {
+sub __privmsg($$@) {
 	my ($src, $dst, @msgs) = @_;
+
 	my @bufs;
 	foreach my $buf (@msgs) {
 		# 3 spaces, two colons, PRIVMSG=7
 		# Length restrictions are for CLIENT Protocol
 		# hence the (MASKLEN - (NICKLEN + 1))
 		# Technically optimizable if we use $agent{lc $src}'s ident and host
-		my $buflen = length($src) + length($dst) + 12 + (MASKLEN - (NICKLEN + 1));
+		my $buflen = length($src) + length($dst) + 5 + length(TOK_PRIVMSG) + (MASKLEN - (NICKLEN + 1));
 		push @bufs, wordwrap($buf, (MAXBUFLEN - $buflen));
 	}
-	my $srcN = $src->{NICK};
+
 	# submit a list of messages as a single packet to the server
-	ircsend(":$srcN @{[TOK_PRIVMSG]} $dst :".join("\r\n".":$src @{[TOK_PRIVMSG]} $dst :", @bufs));
-	callfuncs('LOOP_PRIVMSG', 0, 1, [$src, $dst, \@bufs]);
+	ircsend(":$src @{[TOK_PRIVMSG]} $dst :".join("\r\n".":$src @{[TOK_PRIVMSG]} $dst :", @bufs));
+	return \@bufs;
+}
+sub privmsg($$@) {
+	my ($src, $dst, @msgs) = @_;
+	my $bufs = __privmsg($src, $dst, @msgs);
+	callfuncs('LOOP_PRIVMSG', 0, 1, [$src, $dst, $bufs]);
+}
+sub privmsg_noloop($$@) {
+	my ($src, $dst, @msgs) = @_;
+	__privmsg($src, $dst, @msgs);
+	return;
 }
 
 sub debug(@) {
 	my (@msgs) = @_;
-	debug_privmsg($main_conf{local}, $main_conf{diag}, @msgs);
-	write_log('diag', '<'.$main_conf{local}.'>', @msgs);
+	privmsg(main_conf_local, main_conf_diag, @msgs);
+	write_log('diag', '<'.main_conf_local.'>', @msgs);
 }
-#FIXME: This is part of SrSv::Log... what is it doing here?
-#sub write_log () { }
+
 sub debug_nolog(@) {
 	my (@msgs) = @_;
-	debug_privmsg($main_conf{local}, $main_conf{diag}, @msgs);
+	privmsg(main_conf_local, main_conf_diag, @msgs);
 }
 
-sub debug_privmsg($$@) {
-	my ($src, $dst, @msgs) = @_;
-
-	my @bufs;
-	foreach my $buf (@msgs) {
-		# 3 spaces, two colons, PRIVMSG=7
-		# Length restrictions are for CLIENT Protocol
-		# hence the (MASKLEN - (NICKLEN + 1))
-		my $buflen = length($src) + length($dst) + 12 + (MASKLEN - (NICKLEN + 1));
-		push @bufs, wordwrap($buf, (MAXBUFLEN - $buflen));
-	}
-
-	# submit a list of messages as a single packet to the server
-	ircsendimm(":$src @{[TOK_PRIVMSG]} $dst :".join("\r\n".":$src @{[TOK_PRIVMSG]} $dst :", @bufs));
-	callfuncs('LOOP_PRIVMSG', 0, 1, [$src, $dst, \@bufs]);
-}
 
 sub notice($$@) {
 	my ($src, $dst, @msgs) = @_;
-	my $target = $dst; #lazy erry
+
 	my @bufs;
 	foreach my $buf (@msgs) {
 		# 3 spaces, two colons, NOTICE=6
 		# Length restrictions are for CLIENT Protocol
 		# hence the (MASKLEN - (NICKLEN + 1))
-		my $buflen = length($src) + length($dst) + 12 + (MASKLEN - (NICKLEN + 1));
+		my $buflen = length($src) + length($dst) + 5 + length(TOK_NOTICE) + (MASKLEN - (NICKLEN + 1));
 		push @bufs, wordwrap($buf, (MAXBUFLEN - $buflen));
 	}
-	my $srcN = $src->{NICK};
-	my $targetN;
-	if (ref ($dst) eq "HASH") { #User Object
-		$targetN = $target->{NICK};
-	}
-	elsif(!ref($dst) && $dst =~ /^#/) { # /notice #channel This probably sucks. Blame erry :(
-		$targetN = $dst;
-	}
-	ircsend(":$srcN @{[TOK_NOTICE]} $targetN :".join("\r\n".":$srcN @{[TOK_NOTICE]} $targetN :", @bufs));
-	callfuncs('LOOP_NOTICE', 0, 1, [$srcN, $targetN, \@bufs]);
+
+	# submit a list of notices as a single packet to the server
+	ircsend(":$src @{[TOK_NOTICE]} $dst :".join("\r\n".":$src @{[TOK_NOTICE]} $dst :", @bufs));
+	callfuncs('LOOP_NOTICE', 0, 1, [$src, $dst, \@bufs]);
 }
 
 sub ctcp($$@) {
 	my ($src, $dst, $cmd, @toks) = @_;
-	my $target = $dst; #lazy erry
-	my $srcN = $src->{NICK};
-	my $targetN = ($target->{NICK});
-	privmsg($srcN, $targetN, "\x01".join(' ', ($cmd, @toks))."\x01");
+
+	privmsg($src, $dst, "\x01".join(' ', ($cmd, @toks))."\x01");
 }
 
 sub ctcp_reply($$@) {
 	my ($src, $dst, $cmd, @toks) = @_;
-	my $target = $dst; #lazy erry
-	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	notice($srcN, $targetN, "\x01".join(' ', ($cmd, @toks))."\x01");
+
+	notice($src, $dst, "\x01".join(' ', ($cmd, @toks))."\x01");
 }
 
 sub setumode($$$) {
 	my ($src, $dst, $modes) = @_;
-	my $target = $dst; #lazy erry
-	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	ircsend(":$srcN SVSMODE $targetN $modes");
+
+	ircsend(":$src @{[TOK_SVS2MODE]} $dst $modes");
 	callfuncs('UMODE', 0, undef, [$dst, $modes]);
 }
 
 sub setsvsstamp($$$) {
 	my ($src, $dst, $stamp) = @_;
-	my $srcN = $src->{NICK};
-	my $dstN = $dst->{NICK};
-	ircsend(":$srcN @{[TOK_SVS2MODE]} $dstN +d $stamp");
+
+	ircsend(":$src @{[TOK_SVS2MODE]} $dst +d $stamp");
 	# This function basically set the svsstamp to
 	# be the same as the userid. Not all ircd will
 	# support this function.
-	#and insp doesn't.
 	# We obviously already know the userid, so don't
 	# use a callback here.
 	#callfuncs('UMODE', 0, undef, [$dst, $modes]);
@@ -342,14 +304,14 @@ sub setsvsstamp($$$) {
 
 sub setagent_umode($$) {
 	my ($src, $modes) = @_;
-	ircsend(":$src UMODE2 $modes");
+
+	ircsend(":$src @{[TOK_UMODE2]} $modes");
 }
 
 sub setmode2($$@) {
 	my ($src, $dst, @modelist) = @_;
 	#debug(" --", "-- ircd::setmode2: ".$_[0], split(/\n/, Carp::longmess($@)), " --");
 	foreach my $modetuple (@modelist) {
-		my $target = $modetuple->[1];
 		setmode($src, $dst, $modetuple->[0], $modetuple->[1]);
 	}
 }
@@ -364,141 +326,112 @@ sub ban_list($$$$@) {
 }
 
 sub setmode($$$;$) {
-	my ($src, $dst, $modes, $target) = @_;
-	my $srcN;
-	if (initial_synced()) {
-		if (ref($src) eq "HASH") {
-			$srcN = $src->{NICK};
-		}
-		else {
-			$srcN = $src;
-		}
-	}
-	else {
-		$src = $main_conf{local};
-		$srcN = $src;
-	}
-	my $targetN;
-	if (ref ($target) eq "HASH") {
-		$targetN = $target->{NICK};
-	}
-	else {
-		$targetN = $target;
-	}
-	callfuncs('MODE', undef, 1, [$srcN, $dst, $modes, $targetN]);
-	#print "$ircline -- setmode($srcId, $dst, $modes, $targetId)\n" ;
-	ircsend(":$srcN MODE $dst $modes $targetN");
-}
+	my ($src, $dst, $modes, $parms) = @_;
+	$src = main_conf_local unless initial_synced();
 
-sub setmode_many($$$;@) {
-	my ($src, $dst, $modes, @targets) = @_;
-	my $srcN;
-	if (initial_synced()) {
-		$srcN = $src->{NICK};
-	}
-	else {
-		$srcN = $main_conf{local};
-		$srcN = $src;
-	}
-	my $parms = "";
-	foreach my $target (@targets) { 
-		my $targetN = $target->{NICK};
-		$parms .= ($parms eq ""?"":" ") . $targetN;
-		print "parms" . $parms . "\n";
-	}
-	callfuncs('MODE', undef, 1, [$srcN, $dst, $modes, $parms]);
-	print "$ircline -- setmode($srcN, $dst, $modes, $parms)\n" ;
-	ircsend(":$srcN MODE $dst $modes $parms");
-}
+	callfuncs('MODE', undef, 1, [$src, $dst, $modes, $parms]);
+	
+	print "$ircline -- setmode($src, $dst, $modes, $parms)\n" if DEBUG;
+	my $prev = $defer_mode{"$src $dst"}[-1];
 
+	if(defined($prev)) {
+		my ($oldmodes, $oldparms) = split(/ /, $prev, 2);
+		
+		# 12 modes per line
+		if((length($oldmodes.$modes) - @{[($oldmodes.$modes) =~ /[+-]/g]}) <= 12 and length($src.$dst.$parms.$oldparms) < 400) {
+			$defer_mode{"$src $dst"}[-1] = modes::merge(
+				$prev, "$modes $parms", ($dst =~ /^#/ ? 1 : 0));
+			print $defer_mode{"$src $dst"}[-1], " *** \n" if DEBUG;
+			
+			return;
+		}
+	}
+	
+	push @{$defer_mode{"$src $dst"}}, "$modes $parms";
+}
 
 sub flushmodes(;$) {
 	my $dm = (shift or \%defer_mode);
 	my @k = keys(%$dm); my @v = values(%$dm);
+	
 	for(my $i; $i<@k; $i++) {
 		my ($src, $dst) = split(/ /, $k[$i]);
 		my @m = @{$v[$i]};
 		foreach my $m (@m) {
 			my ($modes, $parms) = split(/ /, $m, 2);
+
 			setmode_real($src, $dst, $modes, $parms);
 		}
 	}
+
 	%$dm = ();
 }
 
 sub setmode_real($$$;$) {
 	my ($src, $dst, $modes, $parms) = @_;
-	print "$ircline -- setmode_real($src, $dst, $modes, $parms)\n";
+
+	print "$ircline -- setmode_real($src, $dst, $modes, $parms)\n" if DEBUG;
 	# for server sources, there must be a timestamp. but you can put 0 for unspecified.
 	$parms =~ s/\s+$//; #trim any trailing whitespace, as it might break the simple parser in the ircd.
-	
-	ircsend(":$src MODE $dst $modes".($parms?" $parms":'').($src =~ /\./ ? ' 0' : ''));
+	ircsend(":$src @{[TOK_MODE]} $dst $modes".($parms?" $parms":'').($src =~ /\./ ? ' 0' : ''));
 }
 
 sub settopic($$$$$) {
 	my ($src, $chan, $setter, $time, $topic) = @_;
-	my $srcN;
-	$srcN = $main_conf{local} unless initial_synced();
-	if ($srcN eq "") {
-		$srcN = $src->{NICK};
-	}
-	ircsend(":$srcN TOPIC $chan :$topic");
-	callfuncs('TOPIC', undef, undef, [$srcN, $chan, $setter, $time, $topic]);
+	$src = main_conf_local unless initial_synced();
+	
+	ircsend(":$src @{[TOK_TOPIC]} $chan $setter $time :$topic");
+	callfuncs('TOPIC', undef, undef, [$src, $chan, $setter, $time, $topic]);
 }
 
 sub wallops ($$) {
 	my ($src, $message) = @_;
-	ircsend(":$src WALLOPS :$message");
+	ircsend(":$src @{[TOK_WALLOPS]} :$message");
 }
 
 sub globops ($$) {
 	my ($src, $message) = @_;
-	my $srcN = $src->{NICK};
-	ircsend(":$srcN GLOBOPS :$message");
+	ircsend(":$src @{[TOK_GLOBOPS]} :$message");
 }
 
 sub kline ($$$$$) {
-    my ($setter, $ident, $host, $expiry, $reason) = @_;
-	$setter = "srsv.erry.omg" unless defined($setter); #FIXME
+        my ($setter, $ident, $host, $expiry, $reason) = @_;
+	$setter=main_conf_local unless defined($setter);
 	$ident = '*' unless defined($ident);
-	my $setN;
-	if (ref ($setter) eq "HASH") {
-		$setN = $setter->{NICK};
-	}
-	else { $setN = $setter; }
-	#:nascent.surrealchat.net TKL + G * *.testing.only tabris!northman@netadmin.SCnet.ops 1089168439 1089168434 :This is just a test.
-    my $line = "TKL + G $ident $host $setN ".($expiry + time()).' '.time()." :$reason";
+
+
+	#foreach my $ex (@except) { return 1 if $mask =~ /\Q$ex\E/i; }
+	
+	#my $line = "GLINE $mask $time :$reason";
+	# you need to use TKL for this. GLINE is a user command
+	# TKL is a server command.	
+        # format is
+        # TKL +/- type ident host setter expiretime settime :reason
+#:nascent.surrealchat.net TKL + G * *.testing.only tabris!northman@netadmin.SCnet.ops 1089168439 1089168434 :This is just a test.
+        my $line = "TKL + G $ident $host $setter ".($expiry + time()).' '.time()." :$reason";
 
 	ircsend($line);
 	callfuncs('TKL', undef, undef, [parse_tkl($line)]);
 }
+
 sub unkline ($$$) {
 	my ($setter, $ident, $host) = @_;
 	# TKL - G ident host setter
 # TKL - G ident *.test.dom tabris!northman@netadmin.SCnet.ops
-	my $setN;
-	if (ref ($setter) eq "HASH") {
-		$setN = $setter->{NICK};
-	}
-	else { $setN = $setter; }
-	my $line = "TKL - G $ident $host $setN";
+	my $line = "TKL - G $ident $host $setter";
 	ircsend($line);
 	callfuncs('TKL', undef, undef, [parse_tkl($line)]);
 }
 
 sub zline ($$$$) {
-    my ($setter, $host, $expiry, $reason) = @_;
+        my ($setter, $host, $expiry, $reason) = @_;
+	$setter=main_conf_local unless defined($setter);
 
 	#foreach my $ex (@except) { return 1 if $mask =~ /\Q$ex\E/i; }
 	
         # format is
         # TKL +/- type ident host setter expiretime settime :reason
-    my $setN;
-	if (ref ($setter) eq "HASH") {
-		$setN = $setter->{NICK};
-	}
-	else { $setN = $setter; }
-    my $line = "TKL + Z * $host $setN ".($expiry + time).' '.time." :$reason";
+        my $line = "TKL + Z * $host $setter ".($expiry + time).' '.time." :$reason";
 	ircsend($line);
 	callfuncs('TKL', undef, undef, [parse_tkl($line)]);
 }
@@ -507,12 +440,7 @@ sub unzline ($$) {
 	my ($setter, $host) = @_;
 	# TKL - G ident host setter
 # TKL - G ident *.test.dom tabris!northman@netadmin.SCnet.ops
-	my $setN;
-	if (ref ($setter) eq "HASH") {
-		$setN = $setter->{NICK};
-	}
-	else { $setN = $setter; }
-	my $line = "TKL - Z * $host $setN";
+	my $line = "TKL - Z * $host $setter";
 	ircsend($line);
 	callfuncs('TKL', undef, undef, [parse_tkl($line)]);
 }
@@ -540,18 +468,21 @@ sub update_userkill($) {
 }
 
 sub irckill($$$) {
-	my ($src, $target, $reason) = @_;
-	$src = $main_conf{local} unless initial_synced();
-	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	return 0 unless update_userkill($targetN);
-	ircsendimm(":$srcN KILL $targetN ($reason)");
-	callfuncs('KILL', 0, 1, [$src, $target, $srcN, $reason]);
+	my ($src, $targetlist, $reason) = @_;
+	$src = main_conf_local unless initial_synced();
+	
+	foreach my $target (split(',', $targetlist)) {
+		next unless update_userkill($target);
+	
+		ircsendimm(":$src @{[TOK_KILL]} $target :$src ($reason)");
+	
+		callfuncs('KILL', 0, 1, [$src, $target, $src, $reason]);
+	}
 }
 
 sub svssno($$$) {
     my ($src, $target, $snomasks) = @_;
-    $src=$main_conf{local} unless defined($src);
+    $src=main_conf_local unless defined($src);
     # TODO:
     # None, this doesn't affect us.
 
@@ -560,36 +491,32 @@ sub svssno($$$) {
 }
 
 sub svsnick($$$) {
-    my ($src, $target, $newnick) = @_;
-    $src=$main_conf{local} unless defined($src);
+    my ($src, $oldnick, $newnick) = @_;
+    $src=main_conf_local unless defined($src);
     # note: we will get a NICK cmd back after a 
     # successful nick change.
     # warning, if misused, this can KILL the user
     # with a collision
-  	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-    ircsend(":$srcN SVSNICK $targetN $newnick ".time);
+    
+#    ircsend(":$src @{[TOK_SVSNICK]} $oldnick $newnick ".time);
+    ircsend("@{[TOK_SVSNICK]} $oldnick $newnick :".time);
 }
 
 sub svsnoop($$$) {
     my ($targetserver, $bool, $src) = @_;
-    $src = $main_conf{local} unless defined($src);
+    $src = main_conf_local unless defined($src);
     if ($bool > 0) { $bool = '+'; } else { $bool = '-'; }
 #this is SVS NO-OP not SVS SNOOP
-    ircsend(":$main_conf{local} SVSNOOP $targetserver $bool");
+    ircsend(":@{[main_conf_local]} @{[TOK_SVSNOOP]} $targetserver $bool");
 }
 
-#START TODO - erry
-
-sub svswatch ($$@) { 
+sub svswatch ($$@) {
 # Changes the WATCH list of a user.
 # Syntax: SVSWATCH <nick> :<watch parameters>
 # Example: SVSWATCH Blah :+Blih!*@* -Bluh!*@* +Bleh!*@*.com
 # *** We do not track this info nor care.
 	my ($src, $target, @watchlist) = @_;
-    my $srcId = ($src->{NICK});
-	my $targetId = $target->{NICK};
-	my $base_str = ":$srcId SVSWATCH $targetId :";
+	my $base_str = ":$src @{[TOK_SVSWATCH]} $target :";
 	my $send_str = $base_str;
 	while (@watchlist) {
 		my $watch = shift @watchlist;
@@ -608,9 +535,7 @@ sub svssilence ($$@) {
 # Example: SVSSILENCE Blah :+Blih!*@* -Bluh!*@* +Bleh!*@*.com
 # *** We do not track this info nor care.
 	my ($src, $target, @silencelist) = @_;
-    my $srcId = ($src->{NICK});
-	my $targetId = ($target->{NICK});
-	my $base_str = ":$srcId SVSSILENCE $targetId :";
+	my $base_str = ":$src @{[TOK_SVSSILENCE]} $target :";
 	my $send_str = $base_str;
 	while (@silencelist) {
 		my $silence = shift @silencelist;
@@ -620,7 +545,6 @@ sub svssilence ($$@) {
 		}
 		$send_str = "$send_str $silence";
 	}
-	print "SENDING $send_str\n";
 	ircsend($send_str);
 }
 
@@ -632,18 +556,19 @@ sub svso($$$) {
 # *** We do not track this info nor care.
 # *** We will see any umode changes later.
 # *** this cmd does not change any umodes!
+
     my ($src, $target, $oflags) = @_;
-    $src = $main_conf{local} unless defined($src);
-    ircsend(":$src SVSO $target $oflags");
+    $src = main_conf_local unless defined($src);
+    ircsend(":$src @{[TOK_SVSO]} $target $oflags");
+
 }
 
 sub swhois($$$) {
 # *** We do not track this info nor care.
     my ($src, $target, $swhois) = @_;
-    $src = $main_conf{local} unless defined($src);
-    ircsend(":$src SWHOIS $target :$swhois");
+    $src = main_conf_local unless defined($src);
+    ircsend(":$src @{[TOK_SWHOIS]} $target :$swhois");
 }
-#END TODO - erry
 
 sub svsjoin($$@) {
 	my ($src, $target, @chans) = @_;
@@ -658,35 +583,32 @@ sub __svsjoin($$@) {
     # a note. a JOIN is returned back to us on success
     # so no need to process this command.
     # similar for svspart.
-	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-    ircsend(($srcN?":$srcN":'')." SVSJOIN $targetN ".join(',', @chans));
+    ircsend(($src?":$src":'')." @{[TOK_SVSJOIN]} $target ".join(',', @chans));
 }
 
 sub svspart($$$@) {
     my ($src, $target, $reason, @chans) = @_;
-   	my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-    ircsend(($srcN ? ":$srcN" : '')." SVSPART $targetN ".join(',', @chans).
+    ircsend(($src ? ":$src" : '')." @{[TOK_SVSPART]} $target ".join(',', @chans).
     	($reason ? " :$reason" : ''));
 }
 
 sub sqline ($;$) {
-	# we need to sqline most/all of our agents.
-	# tho whether we want to put it in agent_connect
-	# or leave it to the module to call it...
+# we need to sqline most/all of our agents.
+# tho whether we want to put it in agent_connect
+# or leave it to the module to call it...
 	my ($nickmask, $reason) = @_;
-	#ircsend("$tkn{SQLINE}[$tkn] $nickmask".($reason?" :$reason":''));
+	#ircsend("@{[TOK_SQLINE]} $nickmask".($reason?" :$reason":''));
 	qline($nickmask, 0, $reason);
 }
 
 sub svshold($$$) {
-	# Not all IRCd will support this command, as such the calling module must check the IRCd capabilities first.
+# Not all IRCd will support this command, as such the calling module must check the IRCd capabilities first.
 	my ($nickmask, $expiry, $reason) = @_;
-	# TKL version - Allows timed qlines.
-	# TKL + Q * test services.SC.net 0 1092179497 :test
+# TKL version - Allows timed qlines.
+# TKL + Q * test services.SC.net 0 1092179497 :test
 	my $line = 'TKL + Q H '.$nickmask.' '.main_conf_local.' '.($expiry ? $expiry+time() : 0).' '.time().' :'.$reason;
 	ircsend($line);
+
 	# at startup we send these too early,
 	# before the handlers are initialized
 	# so they may be lost.
@@ -695,8 +617,8 @@ sub svshold($$$) {
 
 sub svsunhold($) {
 	my ($nickmask) = @_;
-	# TKL version
-	# TKL - Q * test services.SC.net
+# TKL version
+# TKL - Q * test services.SC.net
 	my $line = 'TKL - Q H '.$nickmask.' '.main_conf_local;
 	ircsend($line);
 	callfuncs('TKL', undef, undef, [parse_tkl($line)]);
@@ -733,26 +655,24 @@ sub unqline($) {
 }
 
 sub svskill($$$) {
-	my ($srcUser, $targetUser, $reason) = @_;
+	my ($src, $target, $reason) = @_;
 	# SVSKILL requires a src, it will NOT work w/o one.
 	# not sure if it'll accept a servername or not.
 	# consider defaulting to ServServ
-	my $srcN = $srcUser -> {NICK};
-	my $targetN = $targetUser -> {NICK};
-	die('svskill called w/o $srcUser') unless $srcUser;
-	ircsend(':'.$srcN.' SVSKILL '.$targetN.' :'.$reason);
-	callfuncs('QUIT', 0, undef, [$targetUser, $reason]);
+	die('svskill called w/o $src') unless $src;
+	ircsend(':'.$src.' '.TOK_SVSKILL.' '.$target.' :'.$reason);
+	callfuncs('QUIT', 0, undef, [$target, $reason]);
 }
 
 sub version($) {
 	my ($src) = @_;
-	#ircsend(":$main_conf{local} 351 $src $main::progname ver $main::version $main_conf{local} ".
-	#	$main::extraversion);
+	ircsend(":@{[main_conf_local]} 351 $src $main::progname ver $main::version @{[main_conf_local]} ".
+		$main::extraversion);
 }
 
 sub userhost($) {
 	my ($target) = @_;
-	ircsend("USERHOST $target");
+	ircsend("@{[TOK_USERHOST]} $target");
 }
 
 sub userip($) {
@@ -763,18 +683,14 @@ sub userip($) {
 
 sub chghost($$$) {
 	my ($src, $target, $vhost) = @_;
-    my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	ircsend(($srcN?":$srcN ":'')." CHGHOST $targetN $vhost");
-        callfuncs('CHGHOST', 0, 1, [$srcN, $targetN, $vhost]);
+	ircsend(($src?":$src ":'')."@{[TOK_CHGHOST]} $target $vhost");
+        callfuncs('CHGHOST', 0, 1, [$src, $target, $vhost]);
 }
 
 sub chgident($$$) {
 	my ($src, $target, $ident) = @_;
-    my $srcN = $src->{NICK};
-	my $targetN = $target->{NICK};
-	ircsend(($src?":$srcN ":'')." CHGIDENT $targetN $ident");
-        callfuncs('CHGIDENT', 0, 1, [$srcN, $targetN, $ident]);
+	ircsend(($src?":$src ":'')."@{[TOK_CHGIDENT]} $target $ident");
+        callfuncs('CHGIDENT', 0, 1, [$src, $target, $ident]);
 }
 
 sub jupe_server($$) {
@@ -782,37 +698,13 @@ sub jupe_server($$) {
 
 	# :nascent.surrealchat.net SERVER wyvern.surrealchat.net 2 :SurrealChat
 	die "You can't jupe $server"
-		if ((lc($server) eq lc($remoteserv)) or (lc($server) eq lc($main_conf{local})));
-	ircsend(':'.$main_conf{local}." SQUIT $server :");
-	ircsend(':'.$main_conf{local}." SERVER $server 2 :$reason");
+		if ((lc($server) eq lc($remoteserv)) or (lc($server) eq lc(main_conf_local)));
+	ircsend(':'.main_conf_local.' '."@{[TOK_SQUIT]} $server :");
+	ircsend(':'.main_conf_local.' '."@{[TOK_SERVER]} $server 2 :$reason");
 
 	set_server_juped($server);
 }
-sub agent_dojoin($$) {
-	my ($agent, $chan) = @_;
-	my $srcN;
-	if (ref($agent) ne "HASH") {
-		$srcN = $agent;
-	}
-	else {
-		my $src = $agent;
-		$srcN = $src->{NICK};
-	}
-	ircsend(":" . $srcN .  " JOIN " . $chan);
-}
 
-sub agent_dopart ($$$) {
-	my ($agent, $chan, $reason) = @_;
-	my $srcN;
-	if (ref($agent) ne "HASH") {
-		$srcN = $agent;
-	}
-	else {
-		my $src = $agent;
-		$srcN = $src->{NICK};
-	}
-	ircsend(":$srcN PART $chan :$reason");
-}
 sub rehash_all_servers(;$) {
 	my ($type) = @_;
 
@@ -821,7 +713,7 @@ sub rehash_all_servers(;$) {
 	$type = undef() if(defined($type) && !($type =~ /^\-(motd|botmotd|opermotd|garbage)$/i));
 
 	foreach my $server (get_online_servers()) {
-		ircsend(':'.$main::rsnick.' REHASH '.$server.(defined($type) ? ' '.$type : '') );
+		ircsend(':'.$main::rsnick.' '.TOK_REHASH.' '.$server.(defined($type) ? ' '.$type : '') );
 	}
 }
 
@@ -830,16 +722,17 @@ sub unban_nick($$@) {
 # It is not expected to be portable to other ircds.
 # Similar concepts may exist in other ircd implementations
 	my ($src, $cn, @nicks) = @_;
-	my $srcN = $src->{NICK};
+	
 	my $i = 0; my @nicklist = ();
 	while(my $nick = shift @nicks) {
 		push @nicklist, $nick;
 		if(++$i >= 10) {
-			ircsend(($src ? ":$src" : '' )." SVSMODE $cn -".'b'x($i).' '.join(' ', @nicklist));
+			ircsend(($src ? ":$src " : '' )."@{[TOK_SVSMODE]} $cn -".'b'x($i).' '.join(' ', @nicklist));
 			$i = 0; @nicklist = ();
 		}
 	}
-	ircsend(($srcN ? ":$srcN " : "SVSMODE $cn -".'b'x($i).' '.join(' ', @nicklist)));
+	
+	ircsend(($src ? ":$src " : '' )."@{[TOK_SVSMODE]} $cn -".'b'x($i).' '.join(' ', @nicklist));
 	# We don't loopback this, as we'll receive back the list
 	# of removed bans.
 }
@@ -850,7 +743,7 @@ sub clear_bans($$) {
 # Similar concepts may exist in other ircd implementations
 	my ($src, $cn) = @_;
 	
-	ircsend(($src ? ":$src " : '' ). "SVSMODE $cn -b");
+	ircsend(($src ? ":$src " : '' )."@{[TOK_SVSMODE]} $cn -b");
 	# We don't loopback this, as we'll receive back the list
 	# of removed bans.
 }
@@ -874,18 +767,11 @@ sub enable_cloakhost($$) {
 	setumode($src, $target, '+x'); # only works in 3.2.6.
 }
 
-sub agent_doconn ($$$$$) {
-	my ($nick, $ident, $host, $modes, $gecos) = @_;
-	ircsend("NICK $nick 1 " . time . " $ident $host ".
-		(SJB64 ? itob64(main_conf_numeric) : main_conf_local).
-		" 1 $modes * :$gecos");
-}
-
 sub nolag($$@) {
 	my ($src, $sign, @targets) = @_;
-	$src = $main_conf{local} unless $src;
+	$src = main_conf_local unless $src;
 	foreach my $target (@targets) {
-		ircsend(':'.$src .' SVSNOLAG '.$sign.' '.$target);
+		ircsend(':'.$src .' '.TOK_SVS2NOLAG.' '.$sign.' '.$target);
 	}
 }
 

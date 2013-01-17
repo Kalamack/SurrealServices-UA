@@ -18,12 +18,11 @@ package chanserv;
 use strict;
 
 use SrSv::Timer qw(add_timer);
-
+use Data::Dumper;
 use SrSv::Message qw(current_message);
 use SrSv::IRCd::State qw($ircline synced initial_synced %IRCd_capabilities);
 use SrSv::Message qw(message current_message);
 use SrSv::HostMask qw(normalize_hostmask make_hostmask parse_mask);
-
 #FIXME: This needs to be abstracted into a proper SrSv::IRCd module
 use SrSv::Unreal::Modes qw(@opmodes %opmodes $scm $ocm $acm sanitize_mlockable);
 use SrSv::IRCd::Validate qw( valid_nick validate_chmodes validate_ban );
@@ -37,7 +36,7 @@ use SrSv::Conf2Consts qw( services sql main );
 use SrSv::Time;
 use SrSv::Text::Format qw( columnar enum );
 use SrSv::Errors;
-use SrSv::Insp::UUID;
+
 use SrSv::Log;
 
 use SrSv::User qw(
@@ -58,7 +57,7 @@ use SrSv::MySQL qw( $dbh :sql_types );
 use SrSv::MySQL::Glob;
 
 use SrSv::Util qw( makeSeqList );
-use Data::Dumper;
+
 use constant {
 	UOP => 1,
 	VOP => 2,
@@ -140,9 +139,8 @@ our @override = (
 
 $chanuser_table = 0;
 
-our $csnick_default = 'ChanServ1';
+our $csnick_default = 'ChanServ';
 our $csnick = $csnick_default;
-our $csUser = { NICK => $csnick, ID => ircd::getAgentUuid($csnick) };
 
 our ($cur_lock, $cnt_lock);
 
@@ -208,17 +206,17 @@ our (
 	$find_bans, $list_bans, $wipe_bans,
 	$find_bans_chan_user, $delete_bans_chan_user,
 
-	$add_auth, $list_auth_chan, $check_auth_chan, $get_auth_nick, $get_auth_num, $find_auth,
+	$add_auth, $list_auth_chan, $get_auth_nick, $get_auth_num, $find_auth,
 
 	$set_bantype, $get_bantype,
 
 	$drop_chantext, $drop_nicktext,
 	$get_host,
 	$get_host_inchan,
+	$get_expired_bans,
 );
 
 sub init() {
-	$csUser = { NICK => $csnick, ID => ircd::getAgentUuid($csnick) };
 	#$chan_create = $dbh->prepare("INSERT IGNORE INTO chan SET id=(RAND()*294967293)+1, chan=?");
 	$get_joinpart_lock = $dbh->prepare("LOCK TABLES chan WRITE, chanuser WRITE");
 	$get_modelock_lock = $dbh->prepare("LOCK TABLES chanreg READ LOCAL, chan WRITE");
@@ -438,7 +436,7 @@ sub init() {
 
 
 	$get_info = $dbh->prepare("SELECT chanreg.descrip, chanreg.regd, chanreg.last, chantext.data, 
-		chanreg.topicer, chanreg.modelock, foundernick.nick, successornick.nick, chanreg.bot, chanreg.bantype
+		chanreg.topicer, chanreg.modelock, foundernick.nick, successornick.nick, chanreg.bot, chanreg.bantype, chanreg.bantime
 		FROM nickreg AS foundernick, chanreg
 		LEFT JOIN nickreg AS successornick ON(successornick.id=chanreg.successorid)
 		LEFT JOIN chantext ON (chanreg.chan=chantext.chan AND chantext.type=".CRT_TOPIC().")
@@ -446,13 +444,12 @@ sub init() {
 
 	$register = $dbh->prepare("INSERT INTO chanreg
 		SELECT ?, ?, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), NULL, NULL,
-		NULL, id, NULL, NULL, NULL, ".DEFAULT_BANTYPE()." FROM nickreg WHERE nick=?");
+		NULL, id, NULL, NULL, NULL, ".DEFAULT_BANTYPE().",0 FROM nickreg WHERE nick=?");
 	$register->{PrintError} = 0;
 	$copy_chanreg = $dbh->prepare("INSERT INTO chanreg
-		(      chan, descrip, regd,             last,             modelock, founderid, successorid, bot, flags, bantype)
-		SELECT ?,    descrip, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), modelock, founderid, successorid, bot, flags, bantype
+		(      chan, descrip, regd,             last,             modelock, founderid, successorid, bot, flags, bantype,bantime)
+		SELECT ?,    descrip, UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), modelock, founderid, successorid, bot, flags, bantype,bantime
 		FROM chanreg WHERE chan=?");
-
 	$drop_acc = $dbh->prepare("DELETE FROM chanacc WHERE chan=?");
 	$drop_lvl = $dbh->prepare("DELETE FROM chanlvl WHERE chan=?");
 	$drop_akick = $dbh->prepare("DELETE FROM akick WHERE chan=?");
@@ -474,7 +471,6 @@ sub init() {
 	$drop_welcome = $dbh->prepare("DELETE FROM welcome WHERE chan=?");
 	$count_welcome = $dbh->prepare("SELECT COUNT(*) FROM welcome WHERE chan=?");
 	$consolidate_welcome = $dbh->prepare("UPDATE welcome SET id=id-1 WHERE chan=? AND id>?");
-
 	$add_ban = $dbh->prepare("INSERT IGNORE INTO chanban SET chan=?, mask=?, setter=?, type=?, time=UNIX_TIMESTAMP()");
 	$delete_bans = $dbh->prepare("DELETE FROM chanban WHERE chan=? AND ? LIKE mask AND type=?");
 	# likely need a better name for this or for the above.
@@ -499,8 +495,6 @@ sub init() {
 		SELECT nickalias.nrid, (".NTF_AUTH()."), 1, ?, ? FROM nickalias WHERE nickalias.alias=?");
 	$list_auth_chan = $dbh->prepare("SELECT nickreg.nick, nicktext.data FROM nickreg, nicktext
 		WHERE nickreg.id=nicktext.nrid AND nicktext.type=(".NTF_AUTH().") AND nicktext.chan=?");
-	$check_auth_chan = $dbh->prepare("SELECT nickreg.nick, nicktext.data FROM nickreg, nicktext
-		WHERE nickreg.id=nicktext.nrid AND nicktext.type=(".nickserv::NTF_AUTH().") AND nicktext.chan=? AND nickreg.nick=?");
 	$get_auth_nick = $dbh->prepare("SELECT nicktext.data FROM nickreg, nickalias, nicktext
 		WHERE nickreg.id=nicktext.nrid AND nickreg.id=nickalias.nrid AND nicktext.type=(".NTF_AUTH().")
 		AND nicktext.chan=? AND nickalias.alias=?");
@@ -518,7 +512,13 @@ sub init() {
 	$drop_chantext = $dbh->prepare("DELETE FROM chantext WHERE chan=?");
 	$drop_nicktext = $dbh->prepare("DELETE nicktext.* FROM nicktext WHERE nicktext.chan=?");
 	$get_host = $dbh->prepare ("SELECT user.host from user where user.nick=?");
-	$get_host_inchan = $dbh->prepare ("select user.nick from user  left join chanuser on (user.id=chanuser.nickid) where user.host=? and chanuser.joined=1 and chanuser.chan=? and user.nick<>?");
+	$get_host_inchan = $dbh->prepare ("SELECT clonedUsers.nick FROM user AS curUser
+		JOIN user AS clonedUsers ON (curUser.host=clonedUsers.host)
+		JOIN chanuser ON (chanuser.nickid=clonedUsers.id)
+		WHERE clonedUsers.id!=curUser.id AND curUser.id=? AND chanuser.chan=? AND chanuser.joined=1");
+	$get_expired_bans = $dbh->prepare("SELECT channel, banmask, expiry, timeset FROM tmpban
+		WHERE expiry < UNIX_TIMESTAMP()");
+
 }
 
 use SrSv::MySQL::Stub {
@@ -532,7 +532,30 @@ use SrSv::MySQL::Stub {
 		JOIN nickid ON (chanuser.nickid=nickid.id AND chanacc.nrid=nickid.nrid)
 		WHERE chanperm.name='Join'
 		AND nickid.id=?"],
+	add_tempban => ['INSERT', "INSERT INTO tmpban values (?,?,UNIX_TIMESTAMP()+?,UNIX_TIMESTAMP())"],
+	del_tempban  => ['NULL', "DELETE FROM tmpban WHERE channel=? AND banmask = ?"],
+	__get_bantime => ['SCALAR', "SELECT bantime FROM chanreg WHERE chan=?"],
+	set_bantime => ['NULL', "UPDATE chanreg SET bantime=? WHERE chan=?"],
 };
+
+
+sub get_bantime($) {
+	my ($chan) = @_;
+	my $cn;
+	if(ref $chan) {
+		if(exists $chan->{BANTIME}) {
+			return $chan->{BANTIME};
+		}
+		$cn = $chan->{CHAN};
+	} else {
+		$cn = $chan;
+	}
+	my $bantime = __get_bantime($cn);
+	if(ref $chan) {
+		$chan->{BANTIME} = $bantime;
+	}
+	return $bantime;
+}
 
 ### CHANSERV COMMANDS ###
 
@@ -545,37 +568,69 @@ our %high_priority_cmds = (
 	kban => 1,
 	down => 1,
 );
+sub check_expired_bans() {
+	add_timer('ChanServ Expire', 10, __PACKAGE__, 'chanserv::check_expired_bans');
+	$get_expired_bans->execute();
 
+	while (my ($cn, $ban) = $get_expired_bans->fetchrow_array()) {
+		my $chan = { CHAN => $cn };
+		ircd::setmode(agent($chan), $cn, '-b', $ban);
+	}
+	ircd::flushmodes();
+}
+sub tempban($@) {
+	my ($chan, @bans) = @_;
+
+	my $cn = $chan->{CHAN};
+	return unless scalar(@bans);
+
+	foreach my $ban (@bans) {
+		my ($mask, $expiry);
+		if(ref($ban)) {
+			($mask, $expiry) = @$ban;
+		} else {
+			$mask = $ban;
+		}
+		if($expiry) {
+			add_tempban($cn, $mask, $expiry);
+		}
+	}
+
+	ircd::ban_list(agent($chan), $cn, +1, 'b', map { ref($_) ? $_->[0] : $_ } @bans);
+}
 sub clones_exist ($$) {
 	my ($user, $chan) = @_;
 	my $cn = $chan->{CHAN};
+
 	unless(cr_chk_flag($chan, CRF_NOCLONES)) {
 		return;
 	}
+
 	my $nick = $user->{NICK};
-	$get_host->execute($nick);
-	my ($host) = $get_host->fetchrow_array;
-	$get_host_inchan -> execute ($host,$cn,$nick);
+	$get_host_inchan->execute(get_user_id($user), $cn);
 	my ($joined) = $get_host_inchan->fetchrow_array;
+	$get_host_inchan->finish();
+
 	if ($joined) {
 		return $joined;
 	}
+
 	return 0;
 }
 sub dispatch($$$) {
-	our $csUser = { NICK => $csnick, ID => ircd::getAgentUuid($csnick) };
-	my ($user, $dstUser, $msg) = @_;
-	my $src = $user->{NICK};
+	my ($src, $dst, $msg) = @_;
+
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
-	$user->{AGENT} = $csUser;
-	get_user_id ($user);
+
+	my $user = { NICK => $src, AGENT => $dst };
+
 	return if flood_check($user);
-	return unless (lc $dstUser->{NICK} eq lc $csnick);
+
 	if(!defined($high_priority_cmds{lc $cmd}) &&
 		!adminserv::is_svsop($user) &&
-		$SrSv::IRCd::State::queue_depth > main_conf_highqueue) 
+		$SrSv::IRCd::State::queue_depth > main_conf_queue_highwater) 
 	{
 		notice($user, get_user_agent($user)." is too busy right now. Please try your command again later.");
 		return;
@@ -589,11 +644,15 @@ sub dispatch($$$) {
 			notice($user, 'Syntax: REGISTER <#channel> [password] [description]');
 		}
 	}
-	
+	elsif ($cmd =~ /^t((e)?mp)?b(an)?$/i) {
+		my @args = split (/\s+/, $msg, 2);
+
+		cs_tempban ($user, $args[1]);
+	}
 	elsif($cmd =~ /^(?:[uvhas]op|co?f(ounder)?)$/i) {
 		my ($cn, $cmd2) = splice(@args, 0, 2);
 		my $chan = { CHAN => $cn };
-		
+
 		if($cmd2 =~ /^add$/i) {
 			if(@args == 1) {
 				cs_xop_add($user, $chan, $cmd, $args[0]);
@@ -1018,30 +1077,31 @@ sub dispatch($$$) {
 			cs_join($user, @args);
 		}
 	}
-	elsif($cmd =~ /^topic/i) {
-		my $cn = shift @args;
-		my $chan = { CHAN => $cn };
-		if($cmd =~ /^topicprepend$/i) {
-			if (@args == 0) {
-				notice($user, 'Syntax: TOPICAPPEND <#channel> <message>');
-			} else {
-				$msg =~ s/^topicappend $cn //i;
-				cs_topicappend($user, $chan, 0, $msg);
-			}
-		} elsif($cmd =~ /^topicprepend$/i) {
-			if (@args == 0) {
-				notice($user, 'Syntax: TOPICPREPEND <#channel> <message>');
-			} else {
-				$msg =~ s/^topicprepend $cn //i;
-				cs_topicappend($user, $chan, 1, $msg);
-			}
-		} elsif($cmd =~ /^topic$/i) {
-			if (@args == 0) {
-				notice($user, 'Syntax: TOPIC <#channel> <message|NONE>');
-			} else {
-				$msg =~ s/^topic $cn //i;
-				cs_topic($user, $chan, $msg);
-			}
+	elsif($cmd =~ /^topic$/i) {
+		my $chan = shift @args;
+		if (@args == 0) {
+			notice($user, 'Syntax: TOPIC <#channel> <message|NONE>');
+		} else {
+			$msg =~ s/^topic #(?:\S+)? //i;
+			cs_topic($user, { CHAN => $chan }, $msg);
+		}
+	}
+	elsif($cmd =~ /^topicappend$/i) {
+		my $chan = shift @args;
+		if (@args == 0) {
+			notice($user, 'Syntax: TOPICAPPEND <#channel> <message>');
+		} else {
+			$msg =~ s/^topicappend #(?:\S+)? //i;
+			cs_topicappend($user, $chan, $msg);
+		}
+	}
+	elsif($cmd =~ /^topicprepend$/i) {
+		my $chan = shift @args;
+		if (@args == 0) {
+			notice($user, 'Syntax: TOPICPREPEND <#channel> <message>');
+		} else {
+			$msg =~ s/^topicprepend #(?:\S+)? //i;
+			cs_topicprepend($user, $chan, $msg);
 		}
 	}
 	else {
@@ -1245,16 +1305,7 @@ sub cs_xop_add($$$$) {
 	return unless defined($old);
 
 	my $cn = $chan->{CHAN};
-	if ($level == 3 && $IRCd_capabilities{"HALFOP"} eq "") {
-		notice ($user, "m_halfop.so is required to add half ops.");
-		notice ($user, "Please notify your friendly network administrators to enable it.");
-		return;
-	}
-	if ($level == 5 && $IRCd_capabilities{"ADMIN"} eq "") {
-		notice ($user, "m_chanprotect.so is required to add SOPs.");
-		notice ($user, "Please notify your friendly network administrators to enable it.");
-		return;
-	}
+	
 	if($old == $level) {
 		notice($user, "\002$nick\002 already has $levels[$level] access to \002$cn\002.");
 		return;
@@ -1720,7 +1771,7 @@ sub cs_info($@) {
 			next;
 		}
 
-		my ($descrip, $regd, $last, $topic, $topicer, $modelock, $founder, $successor, $bot, $bantype) = @result;
+		my ($descrip, $regd, $last, $topic, $topicer, $modelock, $founder, $successor, $bot, $bantype,$bantime) = @result;
 
 		$modelock = modes::sanitize($modelock) unless can_do($chan, 'GETKEY', $user, { NOREPLY => 1 });
 
@@ -1744,6 +1795,7 @@ sub cs_info($@) {
 		push @opts, 'Verbose' if cr_chk_flag($chan, CRF_VERBOSE);
 		push @opts, 'NeverOp' if cr_chk_flag($chan, CRF_NEVEROP);
 		push @opts, 'Ban type '.$bantype if $bantype;
+		push @opts, 'Ban time '.$bantime . ' seconds'  if $bantype;
 		my $opts = join(', ', @opts);
 
 		my @data;
@@ -1784,6 +1836,7 @@ sub cs_set_pre($$$$) {
 		'autovoice' => 1, 'avoice' => 1,
 		'neverop' => 1, 'noop' => 1,
 		'noclones' => 1,
+		'bantime' => 1,
 	);
 	my %override_set = (
 		'hold' => 'SERVOP', 'noexpire' => 'SERVOP', 'no-expire' => 'SERVOP',
@@ -1857,10 +1910,11 @@ sub cs_set($$$;$) {
 
 		$set_founder->execute($root, $cn); $set_founder->finish();
 		set_acc($root, $user, $chan, FOUNDER);
+
 		notice($user, ($override ? "The previous founder, \002$prev\002, has" : "You have") . " been moved to the co-founder list of \002$cn\002.");
 		notice_all_nicks($user, $root, "\002$root\002 has been set as the founder of \002$cn\002.");
 		services::ulog($csnick, LOG_INFO(), "set founder of \002$cn\002 to \002$root\002", $user, $chan);
-		$del_nick_akick->execute($cn, $root); $del_nick_akick->finish(); #just in case
+
 		$get_successor->execute($cn);
 		my $suc = $get_successor->fetchrow_array; $get_successor->finish();
 		if(lc($suc) eq lc($root)) {
@@ -1951,7 +2005,22 @@ sub cs_set($$$;$) {
 
 		return;
 	}
-	
+	if($set =~ /^bantime$/i) {
+		if ( ( my $p = substr($parm, 0, 1) ) != '+' ) {
+			$parm = '+' . $parm;
+		}
+		my $time = $parm;
+		unless ($time == 0) {
+			$time = parse_time ($parm);
+			if(!$time) {
+				notice ($user, "Invalid bantime. See /msg chanserv help set bantime for examples.");
+				return;
+			}
+		}
+		set_bantime($time, $cn);
+		notice($user, "Ban time for \002$cn\002 now set to \002$time\002 seconds.");
+		return;
+	}
 	my $val;
 	if($parm =~ /^(?:no|off|false|0)$/i) { $val = 0; }
 	elsif($parm =~ /^(?:yes|on|true|1)$/i) { $val = 1; }
@@ -2165,14 +2234,7 @@ sub cs_why($$@) {
 		$get_all_acc->finish();
 
 		unless($n) {
-			$check_auth_chan -> execute ($cn, $tnick);
-			if (my ($nick, $data) = $check_auth_chan->fetchrow_array()) {
-				my ($adder, $old, $level, $time) = split(/:/, $data);
-				push @reply, "\002$tnick\002 is awaiting authorization to be added to the $cn \002$levels[$level]\002 list.\n";
-			}
-			else {
-				push @reply, "\002$tnick\002 has no access to \002$cn\002.";
-			}
+			push @reply, "\002$tnick\002 has no access to \002$cn\002.";
 		}
 	}
 	notice($user, @reply);
@@ -2181,7 +2243,7 @@ sub cs_why($$@) {
 sub cs_setmodes($$$@) {
 	my ($user, $cmd, $chan, @args) = @_;
 	no warnings 'void';
-	my $agent = $user->{AGENT} or $csUser;
+	my $agent = $user->{AGENT} or $csnick;
 	my $src = get_user_nick($user);
 	my $cn = $chan->{CHAN};
 	my $self;
@@ -2277,8 +2339,8 @@ sub cs_setmodes($$$@) {
 				next;
 			}
 		}
-		get_user_id ($tuser);
-		push @modes, [($de ? '-' : '+').$l[$level], $tuser];
+
+		push @modes, [($de ? '-' : '+').$l[$level], $target];
 		$count++;
 
 	}
@@ -2307,11 +2369,185 @@ sub cs_drop($$) {
 	botserv::bot_part_if_needed(undef(), $chan, "Channel dropped.");
 }
 
+#my ($bansref, $unbansref, $expires) = parse_bans ($user, $chan, '', @targets, 1, $default_expiry);
+#my ($bansref, $unbansref, $expires) = parse_bans ($user, $chan, '', @targets, 1, $expiry);
+sub parse_bans($$$$;$$) {
+	my ($user, $chan, $type, $targetsref, $temp, $expiry) = (@_);
+	my (@bans, @unbans);
+	my ($nick, $override);
+
+	my @targets = @$targetsref;
+	my $cn = $chan->{CHAN};
+	my $src = get_user_nick($user);
+	my $srclevel = get_best_acc($user, $chan);
+
+	($nick, $override) = can_do($chan, 'BAN', $user, { ACC => $srclevel });	
+	return unless $nick;
+
+	my @errors = (
+		["I'm sorry, $src, I'm afraid I can't do that."],
+		["They are not in \002$cn\002."],
+		[$err_deny],
+		["User not found"],
+	);
+
+	foreach my $target (@targets) {
+		my $tuser;
+
+		if ($target =~ /^\+/ && $temp) {
+			$expiry = $target;
+			next;
+		}
+		elsif(ref($target)) {
+			$tuser = $target;
+		}
+		elsif($target =~ /\,/) {
+			push @targets, split(',', $target);
+			next;
+		}
+		elsif($target eq '') {
+			# Should never happen
+			# but it could, given the split above
+			next;
+		}
+		elsif($target =~ /^-/) {
+			$target =~ s/^-//;
+			push @unbans, $target;
+			next;
+		}
+		elsif($target =~ /[!@]+/) {
+			$target = normalize_hostmask($target);
+			if ($temp) {
+				push @bans, [$target, $expiry];
+			} else {
+				push @bans, $target;
+			}
+			next;
+		}
+		elsif(valid_nick($target)) {
+			$tuser = { NICK => $target };
+		}
+		elsif($target = validate_ban($target)) {
+			if ($temp) {
+				push @bans, [$target, $expiry];
+			} else {
+				push @bans, $target;
+			}
+			next;
+		} else {
+			notice($user, "Not a valid ban target: $target");
+			next;
+		}
+
+		my $targetlevel = get_best_acc($tuser, $chan);
+
+		if(lc $target eq lc agent($chan) or adminserv::is_service($tuser)) {
+			push @{$errors[0]}, get_user_nick($tuser);
+			next;
+		}
+
+		unless(get_user_id($tuser)) {
+			push @{$errors[1]}, get_user_nick($tuser);
+			next;
+		}
+
+		if( $srclevel <= $targetlevel and not ($override && check_override($user, 'BAN', "BAN $cn $target")) ) {
+			push @{$errors[2]}, $target;
+			next;
+		}
+
+		if ($temp) {
+			push @bans, [make_banmask($chan, $tuser, $type), $expiry];
+		} else {
+			push @bans, make_banmask($chan, $tuser, $type);
+		}
+	}
+
+	if (!is_registered($chan)) {
+		notice ($user,
+			"$cn is not registered"
+		);
+		return;
+	}
+
+	foreach my $errlist (@errors) {
+		if(@$errlist > 1) {
+			my $msg = shift @$errlist;
+
+			foreach my $e (@$errlist) { $e = "\002$e\002" }
+
+			notice($user,
+				"Cannot ban ".
+				enum("or", @$errlist).
+				": $msg"
+			);
+		}
+	}
+
+	return (\@bans, \@unbans);
+}
+
+sub cs_tempban($$) {
+	my ($user, $argstring) = @_;
+	my ( $expiry, $cn, $chan );
+
+	my @args = split(/ /, $argstring);
+	my $numargs = scalar @args;
+
+	for (my $i = 0; $i < $numargs; $i++) {
+		if ($args[$i] =~ /\#/) {
+			$cn = $args[$i];
+			$chan = { CHAN => $cn };
+			splice (@args, $i, 1);
+		}
+	}
+
+	if (!defined($cn) or !length($cn)) {
+		notice ($user, "No channel given. The channel name \002must\002 include the # character.");
+		return;
+	}
+
+	if ($args[-1] =~ /\+/) { #expire time is last arguement
+		$expiry = pop @args;
+		$expiry = parse_time($expiry);
+	} else { #expire time is somewhere else (if given), get default expiry for now. 
+		$expiry = get_bantime($chan);
+	}
+
+	my @targets;
+
+	foreach my $arg (@args) {
+		if ($arg =~ /\,/) {
+			push @targets, split(/\,/, $arg);
+			next;
+		} else {
+			push @targets, $arg;
+		}
+	}
+
+	my $src = get_user_nick($user);
+
+	my ($bansref, $unbansref) = parse_bans ($user, $chan, '', \@targets, 1, $expiry);
+
+	if ((!$bansref || !scalar @$bansref) && (!$unbansref || !scalar @$unbansref)) {
+		return;
+	}
+
+	if(scalar @$bansref) {
+		tempban ($chan, @$bansref);
+
+		ircd::notice(agent($chan), $cn, "$src used TEMPBAN ".join(' ', @$bansref))
+			if (lc $user->{AGENT} eq lc $csnick) and (cr_chk_flag($chan, CRF_VERBOSE) and scalar(@$bansref));
+	}
+	cs_unban($user, $chan, @$unbansref) if scalar(@$unbansref);
+}
+
 sub cs_kick($$$;$$) {
 	my ($user, $chan, $target, $ban, $reason) = @_;
 
 	my $cmd = ($ban ? 'KICKBAN' : 'KICK');
 	my $perm = ($ban ? 'BAN' : 'KICK');
+
 	if(ref($chan) ne 'HASH' || !defined($chan->{CHAN})) {
 		notice($user, "Invalid $cmd command, no channel specified");
 		return;
@@ -2320,9 +2556,7 @@ sub cs_kick($$$;$$) {
 	my $srclevel = get_best_acc($user, $chan);
 
 	my ($nick, $override) = can_do($chan, ($ban ? 'BAN' : 'KICK'), $user, { ACC => $srclevel });
-	if (!$nick) {
-		return;
-	}
+	return unless $nick;
 
 	my $src = get_user_nick($user);
 	my $cn = $chan->{CHAN};
@@ -2341,7 +2575,6 @@ sub cs_kick($$$;$$) {
 	my @targets = split(/\,/, $target);
 	foreach $target (@targets) {
 		my $tuser = { NICK => $target };
-		get_user_id ($tuser);
 		my $targetlevel = get_best_acc($tuser, $chan);
 
 		if(lc $target eq lc agent($chan) or adminserv::is_service($tuser)) {
@@ -2373,7 +2606,7 @@ sub cs_kick($$$;$$) {
 		if($ban) {
 			kickban($chan, $tuser, undef, $reason, 1);
 		} else {
-			ircd::kick(agent($chan), $cn, $tuser, $reason) unless adminserv::is_service($user);
+			ircd::kick(agent($chan), $cn, $target, $reason) unless adminserv::is_service($user);
 		}
 	}
 	ircd::flushmodes() if($ban);
@@ -2381,9 +2614,9 @@ sub cs_kick($$$;$$) {
 	foreach my $errlist (@errors) {
 		if(@$errlist > 1) {
 			my $msg = shift @$errlist;
-			
+	
 			foreach my $e (@$errlist) { $e = "\002$e\002" }
-			
+
 			notice($user,
 				"Cannot $cmd ".
 				enum("or", @$errlist).
@@ -2414,104 +2647,22 @@ sub cs_kickmask($$$;$$) {
 
 sub cs_ban($$$@) {
 	my ($user, $chan, $type, @targets) = @_;
+
+	my $src = get_user_nick ($user);
+
 	my $cn = $chan->{CHAN};
-	my $src = get_user_nick($user);
 
-	my $srclevel = get_best_acc($user, $chan);
-	my ($nick, $override) = can_do($chan, 'BAN', $user, { ACC => $srclevel });
-	return unless $nick;
+	my ($bansref, $unbansref) = parse_bans ($user, $chan, $type, \@targets);
 
-	my @errors = (
-		["I'm sorry, $src, I'm afraid I can't do that."],
-		["User not found"],
-		[$err_deny]
-	);
-
-	my (@bans, @unbans);
-	foreach my $target (@targets) {
-		my $tuser;
-
-		if(ref($target)) {
-			$tuser = $target;
-		}
-		elsif($target =~ /\,/) {
-			push @targets, split(',', $target);
-			next;
-		}
-		elsif($target eq '') {
-			# Should never happen
-			# but it could, given the split above
-			next;
-		}
-		elsif($target =~ /^-/) {
-			$target =~ s/^\-//;
-			push @unbans, $target;
-			next;
-		}
-=cut
-		elsif($target =~ /[!@]+/) {
-			ircd::debug("normalizing hostmask $target");
-			#$target = normalize_hostmask($target);
-#=cut
-			my ($nick, $ident, $host) = parse_mask($target);
-			$nick = '*' unless length($nick);
-			$ident = '*' unless length($ident);
-			$host = '*' unless length($host);
-			$target = "$nick\!$ident\@$host";
-#=cut
-			ircd::debug("normalized hostmask: $target");
-
-			push @bans, $target;
-			next;
-		}
-=cut
-		elsif(valid_nick($target)) {
-			$tuser = { NICK => $target };
-		}
-		elsif($target = validate_ban($target)) {
-			push @bans, $target;
-			next;
-		} else {
-			notice($user, "Not a valid ban target: $target");
-			next;
-		}
-		my $targetlevel = get_best_acc($tuser, $chan);
-
-		if(lc $target eq lc agent($chan) or adminserv::is_service($tuser)) {
-			push @{$errors[0]}, get_user_nick($tuser);
-			next;
-		}
-		
-		unless(get_user_id($tuser)) {
-			push @{$errors[1]}, get_user_nick($tuser);
-			next;
-		}
-		if( $srclevel <= $targetlevel and not ($override && check_override($user, 'BAN', "BAN $cn $target")) ) {
-			push @{$errors[2]}, $target;
-			next;
-		}
-
-		push @bans, make_banmask($chan, $tuser, $type);
+	if ((!$bansref || !scalar @$bansref) && (!$unbansref || !scalar @$unbansref)) {
+		return;
 	}
 
-	foreach my $errlist (@errors) {
-		if(@$errlist > 1) {
-			my $msg = shift @$errlist;
-			
-			foreach my $e (@$errlist) { $e = "\002$e\002" }
-			
-			notice($user,
-				"Cannot ban ".
-				enum("or", @$errlist).
-				": $msg"
-			);
-		}
-	}
-
-	ircd::ban_list(agent($chan), $cn, +1, 'b', @bans) if (scalar(@bans));
-	ircd::notice(agent($chan), $cn, "$src used BAN ".join(' ', @bans))
-		if (lc $user->{AGENT} eq lc $csnick) and (cr_chk_flag($chan, CRF_VERBOSE) and scalar(@bans));
-	cs_unban($user, $chan, @unbans) if scalar(@unbans);
+	#ircd::ban_list(agent($chan), $cn, +1, 'b', @bans) if (scalar(@bans));
+	tempban($chan, map { [ $_, get_bantime($chan)] } @$bansref);
+	ircd::notice(agent($chan), $cn, "$src used BAN ".join(' ', @$bansref))
+		if (lc $user->{AGENT} eq lc $csnick) and (cr_chk_flag($chan, CRF_VERBOSE) and scalar(@$bansref));
+	cs_unban($user, $chan, @$unbansref) if scalar(@$unbansref);
 }
 
 sub cs_invite($$@) {
@@ -2575,8 +2726,8 @@ sub cs_invite($$@) {
 			next;
 		}
 
-		ircd::invite(agent($chan), $cn, $tuser); push @invited, $tnick;
-		ircd::notice(agent($chan), $tuser, "\002$src\002 has invited you to \002$cn\002.")
+		ircd::invite(agent($chan), $cn, $tnick); push @invited, $tnick;
+		ircd::notice(agent($chan), $tnick, "\002$src\002 has invited you to \002$cn\002.")
 			unless(lc($src) eq lc($tnick));
 	}
 
@@ -2636,7 +2787,7 @@ sub cs_close($$$) {
 	$set_close->execute($cn, $reason, $oper, $type);
 	cr_set_flag($chan, (CRF_FREEZE | CRF_CLOSE | CRF_DRONE), 0); #unset flags
 	cr_set_flag($chan, CRF_HOLD, 1); #set flags
-	cr_set_flag($chan, $type, 1); #set flags
+
 	my $src = get_user_nick($user);
 	my $time = gmtime2(time);
 	my $cmsg = "is closed [$src $time]: $reason";
@@ -2825,12 +2976,12 @@ sub cs_welcome_del($$$) {
 }
 
 sub cs_alist($$;$) {
-        my ($user, $chan, $mask) = @_;
+	my ($user, $chan, $mask) = @_;
 	my $cn = $chan->{CHAN};
 
 	chk_registered($user, $chan) or return;
 
-        my $slevel = get_best_acc($user, $chan);
+	my $slevel = get_best_acc($user, $chan);
 
 	can_do($chan, 'ACCLIST', $user, { ACC => $slevel }) or return;
 
@@ -3167,7 +3318,7 @@ sub cs_copy($$@) {
 		} elsif(!(get_op($user, $chan2) & ($opmodes{o} | $opmodes{a} | $opmodes{q}))) {
 			# This would be preferred to be a 'opmode_mask' or something
 			# However that might be misleading due to hop not being enough to register
-		        notice($user, "You must have channel operator status to register \002$cn2\002.");
+			notice($user, "You must have channel operator status to register \002$cn2\002.");
 			return;
 		} else {
 			cs_copy_chan_all($user, $chan1, $chan2);
@@ -3374,7 +3525,7 @@ sub cs_join($@) {
 		push @out_cns, $cn;
 		
 	}
-	ircd::svsjoin(get_user_agent($user), $user, @out_cns) if scalar @out_cns;
+	ircd::svsjoin(get_user_agent($user), get_user_nick($user), @out_cns) if scalar @out_cns;
 	notice($user, @reply) if scalar @reply;
 }
 
@@ -3383,24 +3534,7 @@ sub cs_topic($$@) {
 	my ($chan, $msg) = ($cn->{CHAN}, join(" ", @args));
 	can_do($cn, 'SETTOPIC', $user) or return undef;
 	ircd::settopic(agent($cn), $chan, get_user_nick($user), time, ($msg =~ /^none/i ? "" : $msg));
-}
-
-sub cs_topicappend {
-	my ($user, $chan, $front, $topicappend) = @_;
-	my $cn = $chan->{CHAN};
-	$get_topic->execute($cn);
-	my ($cur_topic, undef, undef) = $get_topic->fetchrow_array;
-	$get_topic->finish();
-	my $new_topic = $cur_topic;
-	if ($cur_topic) {
-		if($front) {
-			$new_topic = $topicappend . ' | ' . $cur_topic;
-		} else {
-			$new_topic .= ' | ' . $topicappend;
-		}
-	}
-	cs_topic ($user, $chan, $new_topic);
-}
+}   
 
 ### MISCELLANEA ###
 
@@ -3505,12 +3639,18 @@ sub make_banmask($$;$) {
 	return $type."$nick!$ident\@$vhost";
 }
 
-sub kickban($$$$;$) {
+sub kickban($$$$;$$) {
 	my ($chan, $user, $mask, $reason, $noflush) = @_;
-	my $cn = $chan->{CHAN};
-	my $nick = get_user_nick($user);
 
-	return 0 if adminserv::is_service($user);
+	my $cn = $chan->{CHAN};
+	my $nick;
+	$nick = get_user_nick($user) if ($user);
+
+	if (!$user && !$mask) {
+		return;
+	}
+
+	return 0 if $user && adminserv::is_service($user);
 
 	my $agent = agent($chan);
 
@@ -3519,9 +3659,11 @@ sub kickban($$$$;$) {
 	}
 
 	enforcer_join($chan) if (get_user_count($chan) <= 1);
-	ircd::setmode($agent, $cn, '+b', $mask);
+	#ircd::setmode($agent, $cn, '+b', $mask);
+	tempban($chan, [$mask, get_bantime($chan)]);
+
 	ircd::flushmodes() unless $noflush;
-	ircd::kick($agent, $cn, $user, $reason);
+	ircd::kick($agent, $cn, $nick, $reason) if ($nick);
 	return 1;
 }
 
@@ -3536,7 +3678,7 @@ sub kickban_multi($$$) {
 
 	foreach my $user (@$users) {
 		next if adminserv::is_ircop($user) or adminserv::is_svsop($user, adminserv::S_HELP());
-		ircd::kick($agent, $cn, $user, $reason);
+		ircd::kick($agent, $cn, get_user_nick($user), $reason);
 	}
 }
 
@@ -3552,7 +3694,7 @@ sub clear_users($$)  {
 	$get_chan_users->execute($cn);
 	while(my ($nick, $uid) = $get_chan_users->fetchrow_array) {
 		my $user = { NICK => $nick, ID => $uid };
-		ircd::kick($agent, $cn, $user, $reason)
+		ircd::kick($agent, $cn, $nick, $reason)
 			unless adminserv::is_ircop($user) or adminserv::is_svsop($user, adminserv::S_HELP());
 		$i++;
 	}
@@ -3581,7 +3723,7 @@ sub kickmask($$$$)  {
 	$get_chan_users_mask->execute($cn, $nick, $ident, $host, $host, $host);
 	while(my ($nick, $uid) = $get_chan_users_mask->fetchrow_array) {
 		my $user = { NICK => $nick, ID => $uid };
-		ircd::kick($agent, $cn, $user, $reason)
+		ircd::kick($agent, $cn, $nick, $reason)
 			unless adminserv::is_service($user);
 		$i++;
 	}
@@ -3611,7 +3753,7 @@ sub kickmask_noacc($$$$)  {
 	$get_chan_users_mask_noacc->execute($cn, $nick, $ident, $host, $host, $host);
 	while(my ($nick, $uid) = $get_chan_users_mask_noacc->fetchrow_array) {
 		my $user = { NICK => $nick, ID => $uid };
-		ircd::kick($agent, $cn, $user, $reason)
+		ircd::kick($agent, $cn, $nick, $reason)
 			unless adminserv::is_service($user);
 		$i++;
 	}
@@ -3628,12 +3770,11 @@ sub clear_ops($) {
 
 	$get_chan_users->execute($cn);
 	while(my ($nick, $uid) = $get_chan_users->fetchrow_array) {
-		my $user = { NICK => $nick }; 
-		get_user_id ($user);
+		my $user = { NICK => $nick, ID => $uid };
 		my $opmodes = get_op($user, $chan);
 		for(my $i; $i < 5; $i++) {
 			if($opmodes & 2**$i) {
-				push @modelist, ['-'.$opmodes[$i], $user];
+				push @modelist, ['-'.$opmodes[$i], $nick];
 			}
 		}
 	}
@@ -3664,8 +3805,13 @@ sub unban_user($@) {
 	my ($chan, @userlist) = @_;
 	my $cn = $chan->{CHAN};
 	my $count;
-	if (defined(&ircd::unban_users)) {
-		ircd::unban_users(@userlist);
+	if (defined(&ircd::unban_nick)) {
+		my @nicklist;
+		foreach my $tuser (@userlist) {
+			push @nicklist, get_user_nick($tuser);
+		}
+		ircd::unban_nick(agent($chan), $cn, @nicklist);
+		return scalar(@nicklist);
 	}
 
 	foreach my $tuser (@userlist) {
@@ -3673,6 +3819,7 @@ sub unban_user($@) {
 		unless($tuid = get_user_id($tuser)) {
 			next;
 		}
+
 		my (@bans);
 		# We don't handle extended bans. Yet.
 		$find_bans_chan_user->execute($cn, $tuid, 0);
@@ -3723,8 +3870,10 @@ sub do_nick_akick($$;$) {
 	unless(defined($root)) {
 		(undef, $root) = get_best_acc($tuser, $chan, 2);
 	}
+
 	$get_nick_akick->execute($cn, $root);
 	my ($reason) = $get_nick_akick->fetchrow_array(); $get_nick_akick->finish();
+
 	return 0 if adminserv::is_svsop($tuser, adminserv::S_HELP());
 	if(defined($reason) && $reason =~ /\|/) {
 		($reason, undef) = split(/ ?\| ?/, $reason, 2);
@@ -3734,6 +3883,7 @@ sub do_nick_akick($$;$) {
 
 sub check_akick($$;$) {
 	my ($user, $chan, $check_only) = @_;
+
 	if(adminserv::is_svsop($user, adminserv::S_HELP())) {
 		return 0;
 	}
@@ -3767,16 +3917,20 @@ sub do_status($$;$) {
 	my ($acc, $root) = get_best_acc($user, $chan, 2);
 	my ($accnick, $override) = can_do($chan, 'JOIN', $user, { ACC => $acc, NOREPLY => 1 });
 	unless ($acc > 0 || $override) {
-		if (clones_exist ($user, $chan)) {
-			kickban($chan, $user, undef, 'No clones allowed in this channel.')
+		if (clones_exist ($user, $chan) && !adminserv::is_service($user)) {
+			my $mask = make_banmask($chan, $user);
+			my $cn = $chan->{CHAN};
+
+			tempban($chan, [ $mask, 60 ]);
+			ircd::kick(agent($chan), $cn, $nick, "No clones allowed in this channel.");
+
+			return 0;
 		}
 	}
 	
 	if(!$accnick && !$override) {
-		if (!is_agent ($user->{NICK})) {
-			kickban($chan, $user, undef, 'This is a private channel.')
-				unless $check_only;
-		}
+		kickban($chan, $user, undef, 'This is a private channel.')
+			unless $check_only;
 		return 0;
 	}
 
@@ -3825,6 +3979,7 @@ sub akick_allchan($) {
 
 sub akickban(@) {
 	my ($cn, $knick, $bnick, $ident, $host, $reason, $bident) = @_;
+
 	my $target = { NICK => $knick };
 	my $chan = { CHAN => $cn };
 	return 0 if adminserv::is_svsop($target, adminserv::S_HELP());
@@ -3837,9 +3992,6 @@ sub akickban(@) {
 		$bnick =~ tr/\%\_/\*\?/;
 		$ident =~ tr/\%\_/\*\?/;
 		$host =~ tr/\%\_/\*\?/;
-	}
-	if(defined($reason) && $reason =~ /\|/) {
-		($reason, undef) = split(/ ?\| ?/, $reason, 2);
 	}
 
 	if(defined($reason) && $reason =~ /\|/) {
@@ -3855,7 +4007,7 @@ sub notice_all_nicks($$$) {
 
 	notice($user, $msg);
 	foreach my $u (get_nick_user_nicks $nick) {
-		notice({ NICK => $u, AGENT => $csUser }, $msg) unless lc $src eq lc $u;
+		notice({ NICK => $u, AGENT => $csnick }, $msg) unless lc $src eq lc $u;
 	}
 }
 
@@ -3919,7 +4071,7 @@ sub fix_private_join_before_id($) {
 		unban_user($chan, $user);
 	}
 
-	ircd::svsjoin($csUser, $user, @cns) if @cns;
+	ircd::svsjoin($csnick, get_user_nick($user), @cns) if @cns;
 }
 
 ### DATABASE UTILITY FUNCTIONS ###
@@ -4272,6 +4424,7 @@ sub set_modes($$$;$$) {
 	$doneg = 0 unless defined($doneg);
 	my $cn = $chan->{CHAN};
 
+
 	if ($acc < 0) {
 	# Do akick stuff here.
 	}
@@ -4324,26 +4477,16 @@ sub set_mode_mask($$$$) {
 
 		for(my $i; $i < 5; $i++) {
 			my @l = ('v', 'h', 'o', 'a', 'q');
-			if ($IRCd_capabilities{"FOUNDER"} eq "") {
-				$l[4] = 'o';
-			}
-			if ($IRCd_capabilities{"ADMIN"} eq "") {
-				$l[3] = 'o';
-			}
-			if ($IRCd_capabilities{"HALFOP"} eq "") {
-				$l[2] = "v";
-			}
+
 			if($masks[$sign] & 2**$i) {
 				$out .= $l[$i];
-				my $user_ = { NICK => $nick, AGENT => $csnick};
-				get_user_id ($user_);
-				push @args, $user_;
+				push @args, $nick;
 			}
 		}
 	}
 
 	if(@args) {
-		ircd::setmode_many(agent($chan), $cn, $out, @args);
+		ircd::setmode(agent($chan), $cn, $out, join(' ', @args));
 	}
 }
 
@@ -4516,19 +4659,17 @@ sub can_keep_op($$$$) {
 sub agent($) {
 	my ($chan) = @_;
 
-	if($chan->{AGENT}) {
-		my $a = $chan->{AGENT};
-		$a->{ID} = ircd::getAgentUuid($a->{NICK});
-		return $a;
-	}
+	return $chan->{AGENT} if($chan->{AGENT});
 	
 	unless(initial_synced()) {
-		return $csUser;
+		return $csnick;
 	}
+
 	$botserv::get_chan_bot->execute($chan->{CHAN});
-	my $agentnick = $botserv::get_chan_bot->fetchrow_array;
-	my ($agent) = { NICK => $agentnick, ID => ircd::getAgentUuid($agentnick)};
-	$agent = $csUser unless $agentnick;
+	my ($agent) = $botserv::get_chan_bot->fetchrow_array;
+
+	$agent = $csnick unless $agent;
+
 	return $chan->{AGENT} = $agent;
 }
 
@@ -4551,7 +4692,7 @@ sub drop($) {
 	$drop_chantext->execute($cn);
 	$drop_nicktext->execute($cn); # Leftover channel auths
 	$drop->execute($cn);
-	ircd::setmode($csUser, $cn, '-r');
+	ircd::setmode($csnick, $cn, '-r');
 }
 
 sub drop_nick_chans($) {
@@ -4653,7 +4794,8 @@ sub user_join($$) {
 # Due to special casing of '0' this wrapper should be used
 # by anyone handling a JOIN (not SJOIN, it's a JOIN) event.
 # This is an RFC1459 requirement.
-	my ($user, $cn) = @_;
+	my ($nick, $cn) = @_;
+	my $user = { NICK => $nick };
 	my $chan = { CHAN => $cn };
 
 	if ($cn == 0) {
@@ -4670,6 +4812,7 @@ sub user_join($$) {
 sub handle_sjoin($$$$$$$) {
 	my ($server, $cn, $ts, $chmodes, $chmodeparms, $userarray, $banarray, $exceptarray) = @_;
 	my $chan = { CHAN => $cn };
+
 	if(synced()) {
 		chan_mode($server, $cn, $chmodes, $chmodeparms) if $chmodes;
 	} else {
@@ -4690,10 +4833,8 @@ sub user_join_multi($$) {
 	my $cn = $chan->{CHAN};
 	my $seq = $ircline;
 	my $multi_tradeoff = 2; # could use some synthetic-benchmark tuning
+
 	foreach my $user (@$users) {
-		if ($user->{ID} && !$user->{NICK}) {
-			get_user_nick ($user); # INSP
-		}
 		$user->{__ID} = get_user_id($user);
 		
 		unless (defined($user->{__ID})) {
@@ -4747,6 +4888,7 @@ sub user_join_multi($$) {
 		my ($reason, $opnick, $time) = get_close($chan);
 		my $cmsg = "$cn is closed: $reason";
 		my $preenforce = $enforcers{lc $chan};
+		
 		if (cr_chk_flag($chan, CRF_CLOSE)) {
 			kickban_multi($chan, $users, $cmsg);
 		}
@@ -4763,16 +4905,15 @@ sub user_join_multi($$) {
 	}
 
 	if(($count == 0  or !is_agent_in_chan($bot, $cn)) and initial_synced()) {
-		unless ($bot eq $csUser) {
+		unless (lc($bot) eq lc($csnick)) {
 			unless(is_agent_in_chan($bot, $cn)) {
 				botserv::bot_join($chan);
 			}
 		}
 	}
 	
-	#return unless synced() and not cr_chk_flag($chan, (CRF_CLOSE | CRF_DRONE));
-	return unless not cr_chk_flag($chan, (CRF_CLOSE | CRF_DRONE));
-	#commands aren't sent before synced() anyway
+	return unless synced() and not cr_chk_flag($chan, (CRF_CLOSE | CRF_DRONE));
+
 	my $n;
 	foreach my $user (@$users) {
 		if(do_status($user, $chan)) {
@@ -4805,7 +4946,9 @@ sub user_join_multi($$) {
 
 sub user_part($$$) {
 	my ($nick, $cn, $reason) = @_;
+
 	my $user = ( ref $nick eq 'HASH' ? $nick : { NICK => $nick });
+
 	user_part_multi($user, [ $cn ], $reason);
 }
 
@@ -4818,10 +4961,12 @@ sub user_part_multi($$$) {
 # Other ircds may not do so. 
 # There is also KICK. some IRCds allow KICK #chan user1,user2,...
 # Unreal it's _supposed_ to work, but it does not.
+
 	my ($user, $chanlist, $reason) = @_;
 	my @chans;
 	foreach my $cn (@$chanlist) {
 		push @chans, { CHAN => $cn };
+	
 	}
 
 	my $uid = get_user_id($user);
@@ -4854,7 +4999,6 @@ sub channel_emptied($) {
 sub process_kick($$$$) {
 	my ($src, $cn, $target, $reason) = @_;
 	my $tuser = { NICK => $target };
-	get_user_id ($tuser);
 	user_part($tuser, $cn, 'Kicked by '.$src.' ('.$reason.')');
 
 	my $chan = { CHAN => $cn };
@@ -4862,25 +5006,18 @@ sub process_kick($$$$) {
 		({modes::splitmodes(get_modelock($chan))}->{Q}->[0] eq '+') )
 	{
 		my $srcUser = { NICK => $src };
-		get_user_id ($srcUser);
 		#ircd::irckill(agent($chan), $src, "War script detected (kicked $target past +Q in $cn)");
 		nickserv::kline_user($srcUser, 300, "War script detected (kicked $target past +Q in $cn)");
 		# SVSJOIN won't work while they're banned, unless you invite.
-		ircd::invite(agent($chan), $cn, $tuser);
-		ircd::svsjoin(undef, $tuser, $cn);
+		ircd::invite(agent($chan), $cn, $target);
+		ircd::svsjoin(undef, $target, $cn);
 		unban_user($chan, $tuser);
 	}
 }
 
-sub chan_mode($$$$@) {
-	my ($user, $cn, $modes, $args, @userargs) = @_;
-	my $src;
-	if (ref($user) eq "HASH") {
-		$src = $user->{NICK};
-	}
-	else {
-		$src = $user;
-	}
+sub chan_mode($$$$) {
+	my ($src, $cn, $modes, $args) = @_;
+	my $user = { NICK => $src };
 	my $chan = { CHAN => $cn };
 	my ($sign, $num);
 
@@ -4905,20 +5042,24 @@ sub chan_mode($$$$@) {
 		if($mode eq '-') { $sign = 0; next; }
 		
 		my $arg = shift(@args) if($mode =~ $scm or $mode =~ $ocm);
+		my $auser = { NICK => $arg };
+		
 		if($mode =~ /^[vhoaq]$/) {
 			next if $arg eq '';
 			next if is_agent($arg);
-			my $auser = shift (@userargs);
 			$num = 0 if $mode eq 'v';
 			$num = 1 if $mode eq 'h';
 			$num = 2 if $mode eq 'o';
 			$num = 3 if $mode eq 'a';
 			$num = 4 if $mode eq 'q';
-			if($opguard and $sign == 1 and!can_keep_op($user, $chan, $auser, $mode)) {
-				push @unargs, ["-" . $mode, $auser];
+
+			if($opguard and $sign == 1 and
+				!can_keep_op($user, $chan, $auser, $mode)
+			) {
+				$unmodes .= $mode;
+				push @unargs, $arg;
 			} else {
-				my $nid;
-				$nid = get_user_id($auser) or next;
+				my $nid = get_user_id($auser) or next;
 				my ($r, $i);
 				do {
 					if($sign) {
@@ -4943,11 +5084,13 @@ sub chan_mode($$$$@) {
 			#process_ban($cn, $arg, $src, 128, $sign);
 		}
 	}
-	ircd::setmode2(agent($chan), $cn,  @unargs) if($opguard and @unargs);
+	ircd::setmode(agent($chan), $cn, $unmodes, join(' ', @unargs)) if($opguard and @unargs);
 }
 
 sub process_ban($$$$) {
 	my ($cn, $arg, $src, $type, $sign) = @_;
+
+	my $arg2 = $arg;
 
 	$arg =~ tr/\*\?/\%\_/;
 
@@ -4955,50 +5098,60 @@ sub process_ban($$$$) {
 		$add_ban->execute($cn, $arg, $src, $type);
 	} else {
 		$delete_ban->execute($cn, $arg, $type);
+		del_tempban($cn, $arg2);
 	}
 }
-
+sub cs_topicappend {
+	my ($user, $cn, $topicappend) = @_;
+	$get_topic->execute($cn);
+	my ($ntopic, $nsetter, $ntime) = $get_topic->fetchrow_array;
+	my $newtopic;
+	if ($ntopic) {
+		$newtopic = $ntopic . " | " . $topicappend;
+	}
+	else { $newtopic = $topicappend; }
+	cs_topic ($user, { CHAN => $cn }, $newtopic);
+}
+sub cs_topicprepend {
+	my ($user, $cn, $topicprepend) = @_;
+	$get_topic->execute($cn);
+	my ($ntopic, $nsetter, $ntime) = $get_topic->fetchrow_array;
+	my $newtopic;
+	if ($ntopic) {
+		$newtopic = $topicprepend . " | " . $ntopic;
+	}
+	else { $newtopic = $topicprepend; }
+	cs_topic ($user, { CHAN => $cn }, $newtopic);
+}
 sub chan_topic {
-	my ($src, $cn, $suser, $time, $topic) = @_;
+	my ($src, $cn, $setter, $time, $topic) = @_;
 	my $chan = { CHAN => $cn };
-	$suser -> {AGENT} = agent($chan);
-	my $setter = $suser -> {NICK};
+	my $suser = { NICK => $setter, AGENT => agent($chan) };
+
+	return unless is_registered($chan);
 	return if cr_chk_flag($chan, CRF_CLOSE, 1);
 
 	if(current_message->{SYNC}) {  # We don't need to undo our own topic changes.
-		print "Line @{[__LINE__]}\n";
 		$set_topic1->execute($setter, $time, $cn);
 		$set_topic2->execute($cn, $topic);
 		return;
 	}
+
 	if(!synced()) {
-		print "Line @{[__LINE__]}\n";
 		$get_topic->execute($cn);
 		my ($ntopic, $nsetter, $ntime) = $get_topic->fetchrow_array;
 		if($topic ne '' and $time == $ntime or can_do($chan, 'SETTOPIC', undef, { ACC => 0 })) {
-			print "Line @{[__LINE__]}\n";
 			$set_topic1->execute($setter, $time, $cn);
 			$set_topic2->execute($cn, $topic);
 		} else {
-			print "Line @{[__LINE__]}\n";
 			ircd::settopic(agent($chan), $cn, $nsetter, $ntime, $ntopic);
 		}
 	}
-	#lc($src) ne lc($setter) or - removed from previous line because
-	#i think it was breaking it for insp & idk what it did
-	#erry
 
-	# as explained on IRC, the intent is to determine whether it's being set due to a
-	# net.unsplit, or b/c a user is doing it. You can probably do something more useful
-	# by paying attn to timestamp
-	# - tabris
-	elsif(can_do($chan, 'SETTOPIC', $suser)) {
-		print "Line @{[__LINE__]}\n",
-			"condition : ", can_do($chan, 'SETTOPIC', $suser),$/;
+	elsif(lc($src) ne lc($setter) or can_do($chan, 'SETTOPIC', $suser)) {
 		$set_topic1->execute($setter, $time, $cn);
 		$set_topic2->execute($cn, $topic);
 	} else {
-		print "Line @{[__LINE__]}\n";
 		$get_topic->execute($cn);
 		my ($ntopic, $nsetter, $ntime) = $get_topic->fetchrow_array;
 		ircd::settopic(agent($chan), $cn, $nsetter, $ntime, $ntopic);
@@ -5017,8 +5170,6 @@ sub eos(;$) {
 		if($type == CRF_DRONE) {
 			chan_kill($chan, $cn.$cmsg);
 		} else {
-			my $user = { NICK => $opnick};
-			get_user_id ($user);
 			ircd::settopic(agent($chan), $cn, $opnick, $time, "Channel".$cmsg);
 			clear_users($chan, "Channel".$cmsg);
 		}
@@ -5059,6 +5210,7 @@ sub eos(;$) {
 
 	set_user_flag_all(UF_FINISHED());
 	$unlock_tables->execute(); $unlock_tables->finish;
+	check_expired_bans();
 }
 
 1;

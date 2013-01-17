@@ -31,7 +31,7 @@ use SrSv::Log;
 use SrSv::NickReg::Flags qw(NRF_NOHIGHLIGHT nr_chk_flag_user);
 
 use SrSv::MySQL '$dbh';
-use Data::Dumper;
+
 use constant {
 	S_HELP => 1,
 	S_OPER => 2,
@@ -41,14 +41,9 @@ use constant {
 
 our (%flags, @levels, @defflags, $allflags);
 
-our $asnick_default = 'AdminServ1';
-our $asnick = $asnick_default;
-our $asuser = { NICK => $asnick, ID => ircd::getAgentUuid($asnick) };
-
-our (@levels, @defflags);
 BEGIN {
 # BE CAREFUL CHANGING THESE
-my @flagList = (
+my @flags = (
 	'SERVOP',
 	'FJOIN',
 	'SUPER',
@@ -60,14 +55,13 @@ my @flagList = (
 	'HELP',
 );
 
-for(my $i = scalar(@flagList) - 1; $i >= 0; $i--) {
-	$flags{$flagList[$i]} = 1 << $i;
+for(my $i = scalar(@flags) - 1; $i >= 0; $i--) {
+	$flags{$flags[$i]} = 1 << $i;
 }
-$allflags = (1 << scalar(@flagList)) - 1;
-
-@levels = ('Normal User', 'HelpOp', 'Operator', 'Administrator', 'Root');
+$allflags = (1 << scalar(@flags)) - 1;
+our @levels = ('Normal User', 'HelpOp', 'Operator', 'Administrator', 'Root');
 # BE CAREFUL CHANGING THESE
-@defflags = (
+our @defflags = (
 	0, # Unused
 	$flags{HELP}, # HelpOp
 	$flags{HELP}|$flags{FJOIN}|$flags{QLINE}|$flags{SUPER}|$flags{FREEZE}|$flags{KILL}, # Operator
@@ -77,6 +71,8 @@ $allflags = (1 << scalar(@flagList)) - 1;
 );
 
 }
+our $asnick_default = 'AdminServ';
+our $asnick = $asnick_default;
 
 
 our (
@@ -90,7 +86,6 @@ our (
 );
 
 sub init() {
-	$asuser = { NICK => $asnick, ID => ircd::getAgentUuid($asnick) };
 	$create_svsop = $dbh->prepare("INSERT IGNORE INTO svsop SELECT id, NULL, NULL FROM nickreg WHERE nick=?");
 	$delete_svsop = $dbh->prepare("DELETE FROM svsop USING svsop, nickreg WHERE nickreg.nick=? AND svsop.nrid=nickreg.id");
 
@@ -109,19 +104,18 @@ sub init() {
 ### ADMINSERV COMMANDS ###
 
 sub dispatch($$$) {
-	$asuser = { NICK => $asnick, ID => ircd::getAgentUuid($asnick) };
-	my ($user, $dstUser, $msg) = @_;
+	my ($src, $dst, $msg) = @_;
 	$msg =~ s/^\s+//;
 	my @args = split(/\s+/, $msg);
 	my $cmd = shift @args;
-	return unless (lc $dstUser->{NICK} eq lc $asnick);
-	$user -> {AGENT} = $asuser;
-	my $src = $user->{NICK};
-	services::ulog($asuser, LOG_INFO(), "cmd: [$msg]", $user);
+
+	my $user = { NICK => $src, AGENT => $dst };
+
+	services::ulog($asnick, LOG_INFO(), "cmd: [$msg]", $user);
 
 	unless(is_svsop($user) or is_ircop($user)) {
 		notice($user, $err_deny);
-		ircd::globops($asuser, "\002$src\002 failed access to $asnick $msg");
+		ircd::globops($asnick, "\002$src\002 failed access to $asnick $msg");
 		return;
 	}
 
@@ -192,7 +186,7 @@ sub as_svs_add($$$) {
 	$set_svs_level->execute($level, $oper, $root);
 	
 	notice($user, "\002$nick\002 is now a \002Services $levels[$level]\002.");
-	wlog($asuser, LOG_INFO(), "$src added $root as a Services $levels[$level].");
+	wlog($asnick, LOG_INFO(), "$src added $root as a Services $levels[$level].");
 }
 
 sub as_svs_del($$) {
@@ -209,7 +203,7 @@ sub as_svs_del($$) {
 	
 	$delete_svsop->execute($root);
 	notice($user, "\002$nick\002 has been stripped of services rank.");
-	wlog($asuser, LOG_INFO(), "$src stripped $root of services rank.")
+	wlog($asnick, LOG_INFO(), "$src stripped $root of services rank.")
 }
 
 sub as_svs_list($$) {
@@ -273,8 +267,9 @@ sub can_do($$) {
 	my $nflag = $flags{$flag};
 	
 	my ($level, $nick) = get_best_svs_level($user);
+	
 	if($defflags[$level] & $nflag) {
-		return $nick if (($nflag == $flags{'HELP'}) or is_ircop($user)); 
+		return $nick if (($nflag == $flags{'HELP'}) or is_ircop($user));
 	}
 	
 	return undef;
@@ -282,13 +277,12 @@ sub can_do($$) {
 
 sub is_svsop($;$) {
 	my ($user, $rlev) = @_;
-	
+
 	my ($level, $nick) = get_best_svs_level($user);
-	return $nick if (is_agent($nick)); #something odd with srsv kicking itself
 	return $nick if(defined($level) and !defined($rlev));
 
 	if($level >= $rlev) {
-		return $nick if (($rlev == S_HELP) or is_ircop($user)) 
+		return $nick if (($rlev == S_HELP) or is_ircop($user));
 	}
 	
 	return undef;
@@ -302,6 +296,7 @@ sub is_ircop($) {
 	return $user->{IRCOP} if(exists($user->{IRCOP}));
 
 	my %umodes = modes::splitumodes(nickserv::get_user_modes($user));
+
 	no warnings 'deprecated';
 	if(($umodes{'o'} eq '+') or ($umodes{'S'} eq '+')) {
 		$user->{IRCOP} = 1;

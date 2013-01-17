@@ -39,13 +39,10 @@ my %userlist;
 use SrSv::Agent;
 
 my $csnick = 'ConnectServ';
+
 agent_connect($csnick, 'services', undef, '+pqzBHS', 'Connection Monitor');
-my $csUser = { NICK => $csnick };
-if(ircd::TS6_UID) {
-	$csUser->{ID} = ircd::getUuid($csnick);
-}
 agent_join($csnick, main_conf_diag);
-ircd::setmode($csUser, main_conf_diag, '+o', $csUser);
+ircd::setmode($csnick, main_conf_diag, '+o', $csnick);
 
 addhandler('NICKCONN', undef, undef, 'connectserv::ev_nickconn', 1);
 sub ev_nickconn {

@@ -27,7 +27,7 @@ SrSv::User - Track users
 =cut
 
 use strict;
-use Data::Dumper;
+
 use Exporter 'import';
 BEGIN {
 	my %constants = (
@@ -43,7 +43,6 @@ BEGIN {
 		flood_inc flood_check get_flood_level
 		kill_user kline_user
 		__flood_expire
-		set_user_id set_user_nick
 		),
 		keys(%constants));
 	my @flood = qw( flood_inc flood_check get_flood_level );
@@ -62,7 +61,7 @@ use SrSv::MySQL::Stub {
 };
 	
 	
-use SrSv::Insp::UUID;
+
 use SrSv::IRCd::Send; #package ircd
 use SrSv::Process::Init;
 use SrSv::MySQL '$dbh';
@@ -78,15 +77,13 @@ use SrSv::Conf2Consts qw( main services );
 use SrSv::IPv6;
 
 use SrSv::Log;
-use Carp;
+
 our (
 	$get_user_id, $get_user_nick, $get_nickchg, $is_online,
 
 	$get_user_flags, $set_user_flag, $unset_user_flag, $set_user_flag_all,
 
 	$get_host, $get_vhost, $get_cloakhost,
-	$set_user_id, $set_user_nick
-
 );
 
 proc_init {
@@ -103,8 +100,6 @@ proc_init {
 	$get_host = $dbh->prepare("SELECT ident, host FROM user WHERE id=?");
 	$get_vhost = $dbh->prepare("SELECT ident, vhost FROM user WHERE id=?");
 	$get_cloakhost = $dbh->prepare("SELECT 1, cloakhost FROM user WHERE id=?");
-	$set_user_id = $dbh->prepare("UPDATE user SET id=? WHERE nick=?");
-	$set_user_nick = $dbh->prepare("UPDATE user SET nick=? WHERE id=?");
 };
 require SrSv::MySQL::Stub;
 import SrSv::MySQL::Stub {
@@ -115,14 +110,7 @@ import SrSv::MySQL::Stub {
 	__get_user_info => ['ROW', "SELECT ident, host, vhost, gecos, server, time, quittime
 		FROM user WHERE id=?"],
 };
-sub set_user_nick($$) {
-	my ($id, $nick) = @_;
-	$set_user_nick -> execute ($id, $nick);
-}
-sub set_user_id ($$) {
-	my ($nick, $id) = @_;
-	$set_user_id -> execute ($nick, $id);
-}
+
 sub get_flood_level($) {
 	my ($user) = @_;
 
@@ -168,28 +156,26 @@ sub flood_check($;$) {
 sub get_user_id($) {
 	my ($user) = @_;
 	my ($id, $n);
-	unless(ref($user) eq 'HASH') {
-		print "USER $user\mn";
-		die("invalid get_user_id call");
-	}
-	my $nick = $user->{NICK};
-	if($nick eq '') {
-		print "USER " . Dumper($user);
-		die("get_user_id called on empty string");
-	}
-	if (is_agent ($user->{NICK})) {
-		my $properId = ircd::getAgentUuid ($user->{NICK});
-		if ($properId != undef) {
-			$properId = ($properId);
-			return $user->{ID} = $properId;
-		}
-	}
+
 	return undef if(is_agent($user->{NICK}) and not $enforcers{lc $user->{NICK}});
-	if(exists($user->{ID})) {  return $user->{ID}; }
+
+	unless(ref($user) eq 'HASH') {
+		die("invalid get_user_nick call");
+	}
+
+	if(exists($user->{ID})) { return $user->{ID}; }
+
+	my $nick = $user->{NICK};
+
 	# a cheat for isServer()
 	if($user->{NICK} =~ /\./) {
 		return $user->{ID} = undef;
 	}
+
+	if($nick eq '') {
+		die("get_user_id called on empty string");
+	}
+
 	my $nick2;
 	while($n < 10 and !defined($id)) {
 		$n++;
@@ -207,23 +193,18 @@ sub get_user_id($) {
 		$user->{OLDNICK} = $user->{NICK};
 		$user->{NICK} = $nick2;
 	}
+
 	return $user->{ID} = $id;
 }
 
 sub get_user_nick($) {
 	my ($user) = @_;
+
 	unless(ref($user) eq 'HASH') {
 		die("invalid get_user_nick call");
 	}
-	if (exists($user->{ID})) {
-		if (my $nick = ircd::getAgentRevUuid ($user->{ID})) {
-			print "returning agentnick $nick\n";
-			return $user->{NICK} = $nick;
-		}
-	}
-	if(exists($user->{NICK}) and is_online($user->{NICK})) { 
-		return $user->{NICK};
-	}
+
+	if(exists($user->{NICK}) and is_online($user->{NICK})) { return $user->{NICK} }
 
 	# Possible bug? This next bit only works to chase the nick-change
 	# if the caller already did a get_user_id to find out
@@ -345,7 +326,7 @@ sub get_host($) {
 	my ($user) = @_;
 
 	my $id;
-	if(ref($user) eq "HASH") {
+	if(ref($user)) {
 		$id = get_user_id($user);
 	} else {
 		$id = get_user_id({ NICK => $user });
@@ -455,7 +436,7 @@ sub get_user_ip($) {
 sub kill_user($$) {
 	my ($user, $reason) = @_;
 
-	ircd::irckill(get_user_agent($user) || main_conf_local, $user, $reason);
+	ircd::irckill(get_user_agent($user) || main_conf_local, get_user_nick($user), $reason);
 }
 
 sub kline_user($$$) {

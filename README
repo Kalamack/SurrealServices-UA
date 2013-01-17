@@ -1,18 +1,14 @@
-SurrealServices was originally maintained by tabris and saturn on the
-IRC network irc.surrealchat.net to be an alternative for other services.
+	SurrealServices is a full replacement for services like
+Auspice or Anope, offering NickServ, ChanServ, MemoServ,
+BotServ, OperServ. But it is more than that, it also has a
+plugin/module system akin to NeoStats. Additionally it is
+multithreaded to eliminate the problems with timers not expiring
+properly as well as not block everything on a complex or slow
+database query.
 
-You can contact tabris at tabris@surrealchat.net.
+You can contact us on irc.surrealchat.net #dev.lounge or via email:
+tabris@surrealchat.net or saturn@surrealchat.net
 
-SurrealServices+UA is a fork of the original SurrealServices maintained
-by Jordan Songer (rails) and me. We chose to fork SurrealServices due to
-our discontent with the rather slow development of SurrealServices. We
-also with to somewhat modernize the services package and make it comply
-to the IRCv3 standards, which are maintained by the Atheme Project at
-the time of writing this.
-
-You can contact rails and me on #srsv.ua on the StaticBox IRC network.
-
-                                             -- Justin Merwin (qubit)
 -----------------------------------------------------------------------
 CONFIGURATION TIPS
 

@@ -47,7 +47,7 @@ CREATE TABLE `chanlvl` (
 
 CREATE TABLE `chanperm` (
   `name` char(10) NOT NULL default '',
-  `id` bigint(20) unsigned NOT NULL auto_increment,
+  `id` smallint(5) unsigned NOT NULL auto_increment,
   `level` tinyint(4) NOT NULL default '0',
   `max` tinyint(3) unsigned NOT NULL default 0,
   PRIMARY KEY  (`name`),
@@ -115,14 +115,14 @@ CREATE TABLE `nickalias` (
 ) ENGINE=MyISAM;
 
 CREATE TABLE `nickid` (
-  `id` bigint(10) unsigned NOT NULL default '0',
+  `id` int(10) unsigned NOT NULL default '0',
   `nrid` int(11) unsigned NOT NULL default '0',
   PRIMARY KEY  (`id`,`nrid`),
   KEY `nrid` (`nrid`)
 ) ENGINE=HEAP;
 
 CREATE TABLE `nickreg` (
-  `id` bigint(11) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `nick` char(30) NOT NULL default '',
   `pass` char(127) binary NOT NULL default '',
   `email` char(127) NOT NULL default '',
@@ -251,7 +251,7 @@ CREATE TABLE `chantext` (
 DROP TABLE IF EXISTS `chanuser`;
 CREATE TABLE `chanuser` (
   `seq` mediumint(8) unsigned NOT NULL default '0',
-  `nickid` bigint(11) unsigned NOT NULL default '0',
+  `nickid` int(11) unsigned NOT NULL default '0',
   `chan` char(32) NOT NULL default '',
   `joined` tinyint(3) unsigned NOT NULL default '0',
   `op` tinyint(4) NOT NULL default '0',

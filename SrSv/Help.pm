@@ -61,7 +61,7 @@ sub sendhelp($@) {
 		$s =~ s/[^a-z0-9\-]/_/g;
 	}
 	
-    my $file = HELP_PATH . join('/', @subject) . '.txt';
+        my $file = HELP_PATH . join('/', @subject) . '.txt';
 	my @array = readhelp($file);
         unless($array[0]) {
 	    notice($user, "No help for \002".join(' ', 

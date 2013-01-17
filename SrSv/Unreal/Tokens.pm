@@ -92,7 +92,6 @@ my %unrealTokens = (
 	SENDSNO		=> ['SENDSNO',	'Ss'],
 
 	EOS		=> ['EOS',	'ES'],
-	ENDBURST => ['ENDBURST'],
 	UMODE2		=> ['UMODE2',	"\|"],
 
 	REHASH		=> ['REHASH',	'O'],

@@ -70,18 +70,17 @@ sub check_schema() {
 		connectDB();
 		$disconnect = 1;
 	}
-	my $findSchemaVer1 = $dbh->prepare("SHOW TABLES WHERE Tables_in_@{[sql_conf_mysql_db]}='srsv_schema'");
-	$findSchemaVer1->execute();
-	my ($found) = $findSchemaVer1->fetchrow_array();
-	$findSchemaVer1->finish();
+	# SHOW TABLES WHERE doesn't work for MySQL 4.x.
+	my $tables = $dbh->selectall_arrayref("SHOW TABLES");
+	my ($found, undef) = grep { m"srsv_schema" } map { $_->[0] } @$tables;
 	if(defined $found) {
 	} else {
 		return 0;
 	}
-	my $findSchemaVer2 = $dbh->prepare("SELECT `ver` FROM `srsv_schema`");
-	$findSchemaVer2->execute();
-	my ($ver) = $findSchemaVer2->fetchrow_array();
-	$findSchemaVer2->finish();
+	my $findSchemaVer = $dbh->prepare("SELECT `ver` FROM `srsv_schema`");
+	$findSchemaVer->execute();
+	my ($ver) = $findSchemaVer->fetchrow_array();
+	$findSchemaVer->finish();
 	disconnectDB() if $disconnect;
 	return $ver;
 }

@@ -42,7 +42,7 @@ proc_init {
 };
 
 our $rsnick = 'ServServ';
-our $rsUser = { NICK => $rsnick, ID => ircd::getAgentUuid($rsnick) };
+
 addhandler('STATS', undef, undef, 'core::stats');
 sub stats($$) {
 	my ($src, $token) = @_;
@@ -62,11 +62,9 @@ sub pingtimer($) {
 
 agent_connect($rsnick, 'service', undef, '+ABHSNaopqz', 'Services Control Agent');
 agent_join($rsnick, main_conf_diag);
-ircd::setmode($rsUser, main_conf_diag, '+o', $rsUser );
+ircd::setmode($rsnick, main_conf_diag, '+o', $rsnick);
 
 addhandler('SEOS', undef, undef, 'core::ev_connect', 1);
-addhandler('ENDBURST', undef, undef, 'core::ev_connect', 1);
-
 
 sub ev_connect {
 	add_timer('perlserv__pingtimer', 60, __PACKAGE__,
@@ -76,12 +74,8 @@ sub ev_connect {
 addhandler('PRIVMSG', undef, 'servserv', 'core::dispatch', 1);
 
 sub dispatch {
-	our $rsUser = { NICK => $rsnick, ID => ircd::getAgentUuid($rsnick) };
-	my ($user, $dstUser, $msg) = @_;
-	return unless (lc $dstUser->{NICK} eq lc $rsnick);
-	$user->{AGENT} = $rsUser;
-	my $src = $user->{NICK};
-	my $dst = $dstUser->{NICK};
+	my ($src, $dst, $msg) = @_;
+	my $user = { NICK => $src, AGENT => $rsnick };
 	if(!adminserv::is_ircop($user)) {
 		notice($user, 'Access Denied');
 		ircd::globops($rsnick, "\002$src\002 failed access to $rsnick $msg");
@@ -106,7 +100,6 @@ sub dispatch {
 		}
 		my $cmd = $msg;
 		$cmd =~ s/raw\s+//i;
-		print "$cmd\n";
 		ircsend($cmd);
 	}
 	if($msg =~ /^help$/) {
@@ -119,7 +112,7 @@ sub dispatch {
 	}
 }
 
-sub init { $rsUser = { NICK => $rsnick, ID => ircd::getAgentUuid($rsnick) };}
+sub init { }
 sub begin { }
 sub end { }
 sub unload { }

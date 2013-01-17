@@ -30,7 +30,8 @@ use SrSv::Conf::Parameters main => [
 	[ban_webchat_prefixes => 'java|htIRC'],
 	[ipv6 => 0], # not enabled by default as not all systems support it
 	[tokens => 1], # turn off for debugging, so debug-output is easier to read
-	[highqueue => 20],
+	[queue_lowwater => 30],
+	[queue_highwater => 50],
 	[operchan => undef],
 ];
 

@@ -1,8 +1,8 @@
 %BChanServ%B allows you to register and control various aspects of
 channels. ChanServ can prevent malicious users from "taking
 over" channels by limiting who is allowed channel operator
-priviliges.
-
+privileges.
+ 
 Commands:
   REGISTER  Register a channel
   SET       Change various channel configuration settings
@@ -11,22 +11,27 @@ Commands:
   INFO      Information about a channel
   DROP      Drop a registered channel
   MODE      Change channel modes.
-
+ 
 Commands to manipulate access lists:
    CF  SOP  AOP  HOP  VOP  UOP  AUTH
-
+ 
 Commands to change or check channel status:
    VOICE    OP     HALFOP    PROTECT    UP
    DEVOICE  DEOP   DEHALFOP  DEPROTECT  DOWN
    WHY      COUNT  ALIST     RESYNC
-
+ 
+Commands for moderating a channel's users
+   KICK    KICKBAN  KICKMASK KICKBANMASK
+   BAN     UNBAN    BANLIST  TEMPBAN
+ 
+Network Admin Commands:
+   GETKEY   CLOSE    DRONE
+ 
 Other available commands:
-   DICE   INVITE   GETKEY   CLOSE
-   CLEAR  WELCOME  DRONE    KICKMASK
-   KICK   KICKBAN  MLOCK    KICKBANMASK
-   JOIN   COPY     BANLIST
-   TOPIC  TOPICAPPEND TOPICPREPEND
-
+   DICE     JOIN     INVITE
+   WELCOME  CLEAR    MLOCK
+   COPY     TOPIC    TOPICAPPEND
+ 
 Note that channels will be dropped after 21 days of inactivity.
  
 For more help on a specific command, type: %B/cs help%B %Ucommand%U
