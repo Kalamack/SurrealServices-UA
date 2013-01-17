@@ -1,0 +1,3 @@
+%BOperServ FPART%B forces a user to part a channel.
+
+Syntax: %BFPART%B %Unick%U %U#channel%U

@@ -1,0 +1,7 @@
+%BNickServ GLIST%B allows you to view a list of linked nicks.
+
+Syntax: %BGLIST%B [%Unick%U [%Unick%U ...]]
+
+If you do not specify a nick, your current nick will be used.
+
+%BLINKS%B is an alias for %BGLIST%B.

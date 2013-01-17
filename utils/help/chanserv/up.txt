@@ -1,0 +1,11 @@
+%BChanServ UP%B has two syntaxes.
+
+First form gives you the highest channel ops you are allowed
+in the channels you specify.  If you specify no channels, all
+channels will be affected.
+
+Second form gives the highest channel ops allowed to the
+nick[s] in the channel you specify.
+
+Syntax: %BUP%B [%Uchannel%U [%Uchannel%U ...]]
+Syntax: %BUP%B %Uchannel%U %Unick%U [[%Unick%U] ...]

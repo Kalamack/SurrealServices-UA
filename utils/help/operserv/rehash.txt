@@ -1,0 +1,4 @@
+%BOperServ REHASH%B signals all servers to re-read their configuration
+files.
+
+Syntax: %BREHASH%B [%Utype%U]

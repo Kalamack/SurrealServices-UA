@@ -1,0 +1,30 @@
+%BNickServ%B allows you to register a nickname and prevent others
+from using it.
+
+Commands:
+  REGISTER  Register a nickname
+  SET       Change settings
+  IDENTIFY  Authorize yourself using a password
+  SIDENTIFY Identify and change to that nickname.
+  GIDENTIFY Identify, GHOST, and change to that nickname.
+  GHOST     Kill a user who is using your nick
+  RECOVER   Recovers/jupes a nick to stop another user from using it.
+  RELEASE   Releases your nick from services custody
+  INFO      Get information about a nick
+  DROPGROUP Delete a registered nickname and all aliases
+
+  LINK      Make an alias of your nick
+  UNLINK    Remove an alias
+  DROP      Same as UNLINK
+  CHGROOT   Change your root nick
+
+Additional Commands:
+  GLIST  ALIST  WATCH  SILENCE  ACC  SEEN  AJOIN   LISTEMAIL
+  LOGOUT  LIST   AUTH  AUTHCODE SENDPASS   PROFILE
+
+%BNOTICE:%B This service is intended to provide a way for IRC users to
+ensure their identity is not compromised. It is NOT intended to
+facilitate "stealing" of nicknames or other malicious actions. Abuse
+of NickServ will result in, at minimum, loss of the abused nicknames.
+
+For more help on a specific command, type: %B/ns help%B %Ucommand%U

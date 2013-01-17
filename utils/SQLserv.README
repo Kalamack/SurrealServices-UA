@@ -1,0 +1,34 @@
+	SQLserv is a bot intended to make direct query of the database
+possible. It is not considered 'stable', and it barely works at all
+right now.
+
+	First, this service is potentially dangerous. At present only
+read-only commands are possible, but it is capable of being extended to
+allow modification of the database. Doing so without knowledge of the
+workings of the program may BREAK the program. If you do so you get to
+keep all the pieces. The coders of this module cannot be held
+responsible for what you do with it.
+
+	Second, at present it requires the 'services' module to be
+loaded, and the user to have ROOT access. This is for your protection.
+Modifying this module to allow regular opers to use this module MAY
+BREAK the app, and/or expose them to information that they are otherwise
+not supposed to have. Again, the coders of this module cannot be held
+responsible for what you do with it.
+
+	Third, this module does not protect you from doing invalid
+queries. This module does not prevent you from doing queries that may
+take 5 minutes to complete. Since the module has to run everything in
+the parent process, this may BREAK YOUR APP. As usual, we are not
+responsible for what you do with it.
+ADDENDUM: SQL queries are no longer executed in the parent, but the
+disclaimer still applies.
+
+	Fourth, there is no documentation for this module, not that much
+is necessary. You submit SQL queries to it, as if you were using the
+MySQL shell. It attempts to present the result back to you, much as the
+MySQL shell would. Embedded newlines in the returned data MAY BREAK. Not
+that there should be many cases of this in this program. You cannot run
+dependent queries (LOCK first, then SELECT, then UNLOCK), you cannot
+instantiate TEMPORARY tables. You cannot start a transaction. One-shot
+queries are all that is safe.

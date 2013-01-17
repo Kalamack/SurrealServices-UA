@@ -1,0 +1,3 @@
+%BHostServ DEL%B deletes a vHost from a registered nick.
+
+Syntax: %BDEL%B %Unick%U

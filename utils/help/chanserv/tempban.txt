@@ -1,0 +1,9 @@
+%BChanServ TEMPBAN%B Tells ChanServ to set a ban on a person or
+mask for a set amount of time. The ban will be removed automatically after that time has elapsed.
+
+Syntax: %BTEMPBAN%B %U#channel%U %B<nick|mask>%B <%B+TIME%B>
+
+Examples: TEMPBAN #pokemoncrater erry +1d Enough already!
+TEMPBAN #pokemonlake mario121 Marcus +7d
+
+By default limited to %BHOP%B

@@ -1,0 +1,27 @@
+%BOperServ EXCEPT%B is used to add clone-limit exceptions.
+
+There are 3 different kinds of exceptions
+SERVER     - All users on this server[mask]
+HOSTNAME   - All users with this hostmask
+IP         - All users in this IP Netblock
+
+The overall syntax isn't hard, just not well documented. Until
+now.
+
+OS EXCEPT SERVER ADD <name> <limit>
+OS EXCEPT SERVER DEL <name>
+OS EXCEPT HOSTNAME ADD <name> <limit>
+OS EXCEPT HOSTNAME DEL <name>
+
+and the only really different one, IP
+OS EXCEPT IP ADD <IP[/mask]> <limit>
+OS EXCEPT IP DEL <IP[/mask]>
+
+Mask is in bits, like CIDR notation.
+127.0.0.1/32 means 127.0.0.1-127.0.0.1
+or say AOL
+172.192.0.0/12 -> 172.192.0.0 - 172.207.255.255
+172.208.0.0/14 -> 172.208.0.0 - 172.211.255.255
+
+Sorry, it doesn't do the alternate CIDR format
+172.192.0.0/255.240.0.0

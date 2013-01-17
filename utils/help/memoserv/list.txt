@@ -1,0 +1,4 @@
+%BMemoServ LIST%B lists the memos you currently have. Unread memos
+are displayed in bold.
+
+Syntax: %BLIST%B

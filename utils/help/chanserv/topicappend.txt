@@ -1,0 +1,5 @@
+%BChanServ TOPICAPPEND%B appends a phrase to the current topic, or sets the topic if no topic is set yet.
+
+Syntax: %BTOPICAPPEND%B %U#channel%U <message>
+Examples: /cs TOPICAPPEND #erry COOKIES!
+-!- Eustace has changed the topic of #erry to: SLINKIES | COOKIES!

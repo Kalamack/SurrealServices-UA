@@ -1,0 +1,4 @@
+%BOperServ CHANKILL%B adds a G:line for every user in a channel,
+IRCOps excepted.
+
+Syntax: %BCHANKILL%B %U#channel%U <%Ureason%U>

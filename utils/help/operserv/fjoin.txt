@@ -1,0 +1,3 @@
+%BOperServ FJOIN%B forces a user to join a channel.
+
+Syntax: %BFJOIN%B %Unick%U %U#channel%U

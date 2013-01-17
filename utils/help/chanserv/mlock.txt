@@ -1,0 +1,40 @@
+%BChanServ MLOCK%B allows you to lock channel modes either
+on or off.
+
+Syntax: %BMLOCK%B %U#channel%U <%BADD|DEL|SET|RESET%B> %Umodes%U
+
+The %Umodes%U parameter is constructed exactly the same way as
+a %B/MODE%B command; that is, modes preceded by a %B+%B are locked
+on, and modes preceded by a %B-%B are locked off.
+
+%BWarning:%B  If you set a mode-locked key, as in the example
+below, you should also restrict who can join the channel.
+(see %B/cs HELP LEVELS SET%B) Otherwise, anyone entering the channel
+when it is empty will be able to see the key!
+
+Examples:
+
+    %BMLOCK%B %U#channel%U %BADD%B %U+QS-M%U
+       Adds +Q, +S and -M to your mlock.
+
+    %BMLOCK%B %U#channel%U %BDEL%B %UQ%U
+       Removes Q from your mlock, it may be +Q or -Q.
+
+    %BMLOCK%B %U#channel%U %BRESET%B
+       Resets the mode lock to default.
+
+    %BMLOCK%B %U#channel%U %BSET%B %U+nt-iklps%U
+       DON'T USE %USET%U. USE %UADD%U OR %UDEL%U.
+       Forces modes n and t on, and modes i, k, l, p, and
+       s off.  Mode m (and others) are left free to be either
+       on or off.
+
+    %BMLOCK%B %U#channel%U %BSET%B %U+knst-ilmp%U %Umy-key%U
+       DON'T USE %USET%U. USE %UADD%U OR %UDEL%U.
+       Forces modes k, n, s, and t on, and modes i, l, m,
+       and p off.  Also forces the channel key to be
+       "my-key".
+
+    %BMLOCK%B %U#channel%U %BSET%B %U+%U
+       Removes the mode lock; all channel modes are free
+       to be either on or off.

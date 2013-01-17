@@ -1,0 +1,5 @@
+%BNickServ INFO%B displays information about the given
+nicknames, such as the nick's owner, last seen address and
+time, and nick options. 
+
+Syntax: %BINFO%B %Unick%U [%Unick%U ...]

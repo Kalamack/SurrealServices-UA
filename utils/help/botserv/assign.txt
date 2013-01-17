@@ -1,0 +1,4 @@
+%BBotServ ASSIGN%B allows you to assign a bot to a channel.  Once assigned,
+the bot will join the channel and accept commands.
+
+Syntax: %BASSIGN%B %U#channel%U <%Ubot%U>

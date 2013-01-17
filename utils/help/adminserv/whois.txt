@@ -1,0 +1,3 @@
+%BAdminServ WHOIS%B displays the services rank of a given user.
+
+Syntax: %BWHOIS%B %Unick%U

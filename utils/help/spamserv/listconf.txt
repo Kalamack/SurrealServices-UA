@@ -1,0 +1,4 @@
+%BSpamServ LISTCONF%B lists the known settings of
+the current configuration.
+
+Syntax: %LISTCONF%B

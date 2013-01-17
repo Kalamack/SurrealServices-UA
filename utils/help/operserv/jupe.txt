@@ -1,0 +1,7 @@
+%BOperServ JUPE%B allows you to jupiter a server -- that is, to
+create a fake "server" connected to Services which prevents the
+real server of that name from connecting.  The jupe may be
+removed using a standard SQUIT. To be used only in a situation
+where a server is disrupting the network and must be juped.
+
+Syntax: %BJUPE%B %Userver%U %Ureason%U

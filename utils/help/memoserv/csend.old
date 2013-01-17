@@ -1,0 +1,15 @@
+Syntax: CSEND #<chan> [AOP|SOP|CF] <message>
+
+This command will send a channel memo to only the
+higher channel access users.
+Selections:  AOP = Will send to all AOP/SOP/CF
+             SOP = Will only send to SOP and Co-Founders 
+              CF = Will only send to Channel Founders
+* Note:  The Founder receives memos from any selection.
+         Also, selecting ALL or AVOICE will just send
+         a general channel memo.
+
+EX: /MSG MemoServ CSEND #mychan SOP hello all
+
+The Above example will send "hello all" to the
+channel's Super-Ops, Co-Founders and Founder.

@@ -1,0 +1,5 @@
+%BChanServ KICKMASK%B allows you to kick users matching a
+hostmask from the channel. It does not affect users with
+channel access.
+
+Syntax: %BKICKMASK%B %U#channel%U <%Umask%U> [%Ureason%U]

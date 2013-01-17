@@ -1,0 +1,47 @@
+	SurrealServices is a full replacement for services like
+Auspice or Anope, offering NickServ, ChanServ, MemoServ,
+BotServ, OperServ. But it is more than that, it also has a
+plugin/module system akin to NeoStats. Additionally it is
+multithreaded to eliminate the problems with timers not expiring
+properly as well as not block everything on a complex or slow
+database query.
+
+You can contact us on irc.surrealchat.net #dev.lounge or via email:
+tabris@surrealchat.net or saturn@surrealchat.net
+
+-----------------------------------------------------------------------
+CONFIGURATION TIPS
+
+SrSv does not support ziplinks nor SSL, so it should be hosted on the
+same box as the hub, or at least the same local network.
+
+-----------------------------------------------------------------------
+NUMBER OF PROCESSES
+
+We recommend that you leave the "procs" setting at 4 for
+uniprocessor and dual processor servers.  Our benchmarks have
+shown that increasing it above 4 does not provide any benefit.
+
+You may set "procs" to 0 for use on shell servers with a
+limit on the number of background processes. Be aware that
+certain SecurityBot features may cause unacceptable lag when
+running in single-process mode. This issue will be fixed in a
+future release.
+
+-----------------------------------------------------------------------
+MODULE CONFIGURATION
+
+"country" must be loaded AFTER services, and requires that you run
+country-table.pl before using it.
+
+We recommend you run country-table.pl daily in crontab.
+
+"geoip" is like country, but:
+a) a much larger set of tables.
+b) should not be loaded with country.
+c) requires utils/geoip.pl to be run at least once.
+d) Don't bother running geoip.pl more often than monthly in a crontab.
+e) the datafiles are generally updated on the first of the month
+f) geoip uses GeoLite City from MaxMind. We do not grant you a license to use it
+   and are not responsible for any consequences of your using it.
+

@@ -1,0 +1,9 @@
+%BChanServ UNBAN%B Tells ChanServ to remove all bans
+preventing you or another person from entering the given
+channel, or remove particular ban-masks.
+
+Syntax: %BUNBAN%B %U#channel%U [%Unick|mask%U]
+
+By default limited to %BAOP%B
+
+To unban all, use /cs clear #channel bans

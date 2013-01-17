@@ -1,0 +1,4 @@
+%BSpamServ%B allows you to watch for unwanted spam.
+
+Commands:
+  WATCH    Modify channels being watched

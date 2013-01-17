@@ -1,0 +1,17 @@
+%BChanServ CLEAR%B allows you to un-set all channel modes,
+remove all channel status, kick all users, or
+clear the ban list from a channel.
+
+Syntax: %BCLEAR%B %U#channel%U %BMODES%B [%Ureason%U]
+        %BCLEAR%B %U#channel%U %BOPS%B [%Ureason%U]
+        %BCLEAR%B %U#channel%U %BUSERS%B [%Ureason%U]
+        %BCLEAR%B %U#channel%U %BBANS%B [%Ureason%U]
+
+The %BCLEAR MODES%B command removes all channel modes.
+
+The %BCLEAR OPS%B command removes all status from all users
+in a channel.
+
+The %BCLEAR USERS%B command kicks all users from a channel.
+
+The %BCLEAR BANS%B command clears the ban list in a channel.

@@ -1,0 +1,4 @@
+%BChanServ GETKEY%B displays a channel's key (+k).  If a channel has
+a key, you must provide the key when joining the channel.
+
+Syntax: %BGETKEY%B %U#channel%U

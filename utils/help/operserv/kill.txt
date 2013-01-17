@@ -1,0 +1,6 @@
+%BOperServ KILL%B KILLs a user off the network.
+One possible use is to allow helpers to KILL.
+
+Syntax: %BKILL%B %Utarget%U <%Ureason%U>
+
+Example: KILL erry not kool.

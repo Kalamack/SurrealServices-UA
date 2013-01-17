@@ -1,0 +1,10 @@
+%BNickServ ACC%B allows you to view the current status of a nickname. It
+is intended to be used by scripts.
+
+Syntax: %BACC%B %Unick%U
+
+The codes have the following meanings:
+  0  The nick is not registered.
+  1  The nick is registered but not in use.
+  2  The nick is in use but the user has not identified.
+  3  The nick is in use and the user has identified.

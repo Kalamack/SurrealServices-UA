@@ -1,0 +1,3 @@
+%BHostServ OFF%B resets your vHost to your cloakhost.
+
+Syntax: %BOFF

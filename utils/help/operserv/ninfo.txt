@@ -1,0 +1,4 @@
+%BOperServ NINFO%B calls OS UINFO for all clients identified
+to a nick.
+
+Syntax: %BNINFO%B %Unick%U

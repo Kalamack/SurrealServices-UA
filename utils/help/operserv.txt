@@ -1,0 +1,29 @@
+%BOperServ%B provides various functions that may be used by
+IRC Operators.
+
+Commands:
+  FJOIN       Force a user to join a channel.
+  FPART       Force a user to part a channel.
+  UNIDENTIFY  Log out a user from all nick identifies.
+  QLINE       Maintain services QLINE list.
+  JUPE        Introduce a fake server to network.
+  UINFO       Get information about a user.
+  NINFO       Get information about all users identified to
+              a nick.
+  SVSNICK     Change a user's nick.
+  GNICK       Change a user's nick to guest with random number.
+  STAFF       List services operators.
+  LOGONNEWS   Maintain logon news list.
+  EXCEPT      Maintain clone exception list.
+  SESSION     List the number of clones per host.
+  CHANKILL    G:line all users in a channel.
+  REHASH      Rehash all servers.
+  LONERS      Get users that are in zero channels.
+  KILL        KILLs a user normally.
+  SVSKILL     KILLs a user with a specified quit message.
+  GLINE       Adds and removes G:lines.
+  GZLINE      Adds and removes Z:lines.
+  CLONES      Lists and/or manipulates clones.
+              Similar to LONERS.
+  MASSKILL    Alias for CLONES KILL.
+  KILLNEW     List/kill/uinfo/kline newly connected users.

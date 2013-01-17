@@ -1,0 +1,9 @@
+%BBotServ SET%B sets flags on bots.
+
+  PRIVATE   - defaults to on. Set it off to make a bot public.
+  DEAF      - Sets a bot to have umode +d, thus will not receive
+              channel messages. Mostly useful to reduce load.
+              Deaf bots will not be able to be used for
+              any kind of badword kicking.
+
+Syntax: %BSET%B %Ubot%U <%Uflag%U> <%UON/OFF%U>

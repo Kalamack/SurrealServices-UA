@@ -1,0 +1,13 @@
+%BBotServ%B allows you to control services bots.
+ 
+Commands:
+  ASSIGN    Assign bot to channel
+  UNASSIGN  Remove bot from channel
+  LIST      List available bots
+  ADD       Create a new bot
+  DEL       Delete a bot
+  SAY       Make bot say a message
+  ACT       Make bot do an action
+  SET       Set flags on a bot
+ 
+For more help on a specific command, type: %B/bs help%B %Ucommand%U

@@ -1,0 +1,23 @@
+%BOperServ KILLNEW%B gets the list of users that connected within a
+certain period of time.
+
+* retrieves %BUINFO%B,
+* sends a %BMSG%B to the users,
+* %BFJOIN%Bs the users,
+* %BKILL%Bs the users,
+* %BKLINE%Bs the users.
+
+Syntax: %BKILLNEW%B <%ULIST|UINFO|MSG|FJOIN|KILL|KLINE%U> [NOTID] +time [%Umsg/reason%U]
+
+    LIST    -    Lists all users that match.
+    UINFO   -    Retrieves UINFO for all users that match. %BWARNING%B May flood you off.
+    MSG     -    Sends a NOTICE from OperServ to the users. Message is not optional. (DUH)
+    FJOIN   -    Force-Join to a channel.
+    KILL    -    Kill the users. Reason is optional, but recommended.
+    KLINE   -    G:Line the users. Reason is optional, but recommended.
+
+Examples:
+
+    KILLNEW LIST NOTID +5m
+    KILLNEW UINFO +30s
+    KILLNEW KILL NOTID +30s

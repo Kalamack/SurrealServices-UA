@@ -1,0 +1,4 @@
+%BChanServ TOPIC%B sets, or unsets, the current topic of the channel.
+To unset the topic, use NONE as the message.
+
+Syntax: %BTOPIC%B %U#channel%U <message|NONE>

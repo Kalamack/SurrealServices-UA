@@ -1,0 +1,16 @@
+%BNickServ SIDENTIFY%B is similar to the IDENTIFY command. The
+difference is SIDENITFY changes your nickname while
+identifying.
+It will automatically release an enforced nick, but it will
+not ghost or recover your nick if another user is using it.
+
+Syntax: %BSIDENTIFY%B %Unick%U <%Upassword%U>
+
+Examples:
+    SIDENTIFY n00b
+    SIDENTIFY Soulja soulseeker
+    SID bob thebuilder
+
+Example:
+/msg nickserv sidentify yournick yourpass
+This command is mostly useful if you use HIGH protection on your nickname.

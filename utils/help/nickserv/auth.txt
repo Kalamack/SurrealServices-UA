@@ -1,0 +1,18 @@
+%BNickServ AUTH%B is used for reviewing and approving/rejecting
+channel access grants.
+
+ACCEPT  - Approve the authorization request and memo the person confirmation.
+APPROVE - Same as accept.
+DECLINE - Decline the authorization request and memo the person
+          that you will not be added to that channel list.
+REJECT  - Same as decline
+LIST    - List auth requests.
+
+Syntax: AUTH [%Unick%U] <%ULIST|ACCEPT|DECLINE%U> [%Unum|chan%U]
+
+If you do not want to be added to that channel list, use decline or reject.
+Demotions are handled by deleting the target's access, so they may accept
+the demotion, or no access at all.
+
+Other related commands:
+/msg nickserv help set auth

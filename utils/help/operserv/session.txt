@@ -1,0 +1,4 @@
+%BOperServ SESSION%B displays a list of hosts with more than a
+certain number of clones.
+
+Syntax: %BSESSION%B %Unumber%U

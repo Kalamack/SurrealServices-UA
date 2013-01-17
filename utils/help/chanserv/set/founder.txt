@@ -1,0 +1,9 @@
+%BChanServ SET FOUNDER%B changes the founder of a channel.
+You must be the current founder of the channel, and the new
+founder must have a registered nick.
+
+Syntax: %BSET%B %U#channel%U %BFOUNDER%B <%Unick%U>
+
+Once you have used this command, you will be automatically
+moved to the channel's co-founder list; you may then remove
+yourself or demote yourself to any lower rank.

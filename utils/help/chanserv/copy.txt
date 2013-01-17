@@ -1,0 +1,27 @@
+%BChanServ COPY%B copies channel properties from one channel
+to another.
+
+* If #channel2 is not registered, you must be op in
+  #channel2.
+* You must have permission (LEVELS %BCOPY%B) in #channel1 in
+  order to copy to #channel2.
+* If #channel2 is already registered, you must also have
+  permission to copy to it.
+* If no type is specified, type is assumed to be All
+
+Available properties are:
+* All
+  Creates a new #channel2 from #channel1. #channel2 cannot
+  be registered. You must be opped on #channel2.
+* AKick
+* Access
+  May only copy one particular xOp/rank list.
+* LEVELS
+
+Syntax: %BCOPY%B %U#chan1%U [%Utype [rank]%U] %U#chan2%%U
+
+Examples:
+  COPY #chan1 #chan2
+  COPY #chan1 akick #chan2
+  COPY #chan1 access #chan2
+  COPY #chan1 access aop #chan2

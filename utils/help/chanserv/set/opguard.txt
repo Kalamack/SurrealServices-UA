@@ -1,0 +1,12 @@
+%BChanServ SET OPGUARD%B makes ChanServ strictly
+control channel status.
+
+Syntax: %BSET%B %U#channel%U %BOPGUARD%B <%UON/OFF%U>
+  
+When OpGuard is set to ON, only people with the
+appropriate permission will be allowed to grant
+channel status to other users.
+
+Note:  This setting will have no effect unless you
+also change the %BLEVELS%B settings for VOICE, HOP,
+OP, and/or PROTECT.  See %B/cs help levels%B

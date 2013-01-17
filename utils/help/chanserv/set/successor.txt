@@ -1,0 +1,8 @@
+%BChanServ SET SUCCESSOR%B changes the successor of a channel.
+The new successor must have a registered nick.
+
+Syntax: %BSET%B %U#channel%U %BSUCCESSOR%B <%Unick%U>
+
+The channel successor will be made founder in case the original
+founder's nick is expired or dropped.  A channel with no
+successor will expire along with the founder's nick.

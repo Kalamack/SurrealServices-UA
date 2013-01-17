@@ -1,0 +1,20 @@
+%BChanServ CF%B maintains the cofounder list for a channel.
+Users on this list are allowed to do anything the founder can do.
+
+Syntax: %BCF%B %U#channel%U %BADD%B <%Unick%U>
+        %BCF%B %U#channel%U %BDEL%B <%Unick%U>
+        %BCF%B %U#channel%U %BLIST%B [%Umask%U]
+        %BCF%B %U#channel%U %BWIPE%B
+
+The %BCF ADD%B command adds the given nickname to the list.
+If the target has SET AUTH on, a demotions is handled by
+deleting the target's access, so they may accept the demotion,
+or no access at all.
+
+The %BCF DEL%B command removes the given nick from the list.
+
+The %BCF LIST%B command displays the list.
+if a mask is given, only those entries matching the mask are
+displayed.
+
+The %BCF WIPE%B command removes all entries from the list.

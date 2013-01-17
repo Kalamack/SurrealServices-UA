@@ -1,0 +1,41 @@
+%BSecurityBot TKL%B is a series of functions to make TKL
+handling easier. Specifically it will help in handling
+G:lines and GZ:lines.
+
+Syntax is as follows:
+
+TKL LIST [(+/- filters) [params]]
+TKL DEL <(+/- filters) <params>>
+
+Filters are case-sensitive.
+
+Filter-parameters may be delimited by // (for regexps) or
+"" (for regexps or strings).  Otherwise space delimiters are
+assumed. if there is a mismatch in the filter vs param count,
+the command WILL fail.
+
+Filters may be any of:
+  Globbing filters
+    r    %BReason%B
+    m    %BMask%B (ident@host only)
+    s    %BSetter%B
+  Regular Expression filters
+    R    %BReason%B
+    M    %BMask%B (ident@host only)
+    S    %BSetter%B
+  Miscellaneous Filters
+    O/o  %BOrder by%B (Sort by) - case insensitive.
+         negative is Descending, positive is Ascending.
+         You can specify multiple of these, but the
+         resulting sort order is not always intuitive.
+         Default is type,time,host Ascending.
+         Legal, but not necessarily meaningful for delete.
+         Available sort fields: %Btype%B, %Bident%B, %Bhost%B, %Bsetter%B,
+         %Bexpire%B, %Btime%B, %Breason%B.
+
+Example:
+
+TKL LIST -r+s *warez* *netadmin*
+would list all bans that do not include the word 'warez'
+and set by an oper with 'netadmin' in their vhost.
+

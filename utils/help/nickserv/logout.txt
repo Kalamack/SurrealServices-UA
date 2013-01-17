@@ -1,0 +1,4 @@
+%BNickServ LOGOUT%B logs you out of all nicks that you are
+identified. THE USE OF THIS COMMAND IS LOGGED.
+
+Syntax: %BLOGOUT%B

@@ -1,0 +1,8 @@
+%BNickServ REGISTER%B allows you to reserve a particular nickname for
+your own use and prove your identity using a password.
+
+Syntax: %BREGISTER%B <%Upassword%U> <%Ue-mail%U>
+
+%BNOTICE:%B The email address is %BNOT%B optional and you are strongly
+discouraged from using a fake address, as this will make it impossible
+to prove your ownership of a nick should you forget your password.

@@ -1,0 +1,6 @@
+%BNickServ ALIST%B allows you to view a list of channels where a nick
+has access.
+
+Syntax: %BALIST%B [%Unick%U [%Unick%U ...]]
+
+If you do not specify a nick, your current nick will be used.

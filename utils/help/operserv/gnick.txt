@@ -1,0 +1,5 @@
+%BOperServ GNICK%B forces a user to have their nick changed to a
+Guest. Commonly used when qlining, or when a user is otherwise
+using a nick they should not.
+
+Syntax: %BGNICK%B %Unick%U

@@ -1,0 +1,29 @@
+%BChanServ SET%B allows the channel founder to set various
+channel options and other information
+
+Settings:
+  FOUNDER        Set the founder for a channel
+  SUCCESSOR      Set the successor for a channel
+  UNSUCCESSOR    Remove the successor for a channel
+  PASSWORD       Set the channel password
+  DESC           Set the channel description
+  OPGUARD        Stricter control of chanop status
+  SPLITOPS       Let anyone keep ops from a netsplit
+  VERBOSE        Notify chanops on command usage
+  NEVEROP        Make a channel opless
+  WELCOMEINCHAN  Puts WELCOME messages into the channel.
+                     This flag doesn't do what you think it does.
+                     Don't use it.
+  AUTOVOICE      Voices everyone who joins the channel.
+  BANTYPE        Selects the ban-type to be used for KICKBAN and AKICKs
+  TOPICLOCK      Restricts who can change the topic in the channel.
+  NOCLONES       Bans people who bring clones into the channel.
+  BANTIME		 Time until bans are automatically removed.
+Oper only flags:
+  HOLD         Prevent channel from expiring
+  FREEZE       Suspend access in this channel
+  BOTSTAY      Make the bot stay in the channel when empty.
+  LOG          Tells LogServ to join and log the channel.
+
+For more help about a specific setting, type:
+%B/cs help set%B %Usetting%U

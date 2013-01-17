@@ -1,0 +1,19 @@
+- This is SecurityBot.
+
+- Available Commands:
+-  NOTICE nick message: Say something.
+-  MSG nick message: Say it again.
+-  RAW message: Say it from the heart.
+
+-  TOR-UPDATE: Update Tor server list
+
+-  KILL nick reason: Commit murder.
+
+-  CONF: View configuration.
+-  SET name value: Edit configuration.
+-  AUTH hostmask: Allow someone to control me.
+-  REHASH: Revert configuration.
+-  SAVE: Save configuration.
+
+-  TSSYNC: Sync all the ircds clocks to services
+-  TKL: Manipulate the TKL (G:line & Z:line) list

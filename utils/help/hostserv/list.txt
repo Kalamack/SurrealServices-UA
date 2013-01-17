@@ -1,0 +1,3 @@
+%BHostServ LIST%B displays a list of vHosts matching a mask.
+
+Syntax: %BLIST%B %Umask%U

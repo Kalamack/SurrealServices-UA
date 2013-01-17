@@ -1,0 +1,9 @@
+%BChanServ JOIN%B requests ChanServ to join you to the
+channel. If you have channel access, the bot will also give
+you an invite, to bypass any bans or other restrictive
+channel modes.
+
+If you are not allowed to join the channel, you will not
+join.
+
+Syntax: %BJOIN%B %U#channel%U [%U#channel%U [%U#channel%U]]

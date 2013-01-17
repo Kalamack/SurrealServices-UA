@@ -1,0 +1,9 @@
+%BNickServ LINK%B links your current nickname to another
+nickname.  Linked nicknames share everything from access
+lists and settings to memos.
+
+Syntax: %BLINK%B %Unick%U <%Upassword%U>
+
+This command does NOT support linking two groups together.
+
+%BGROUP%B is an alias for %BLINK%B.

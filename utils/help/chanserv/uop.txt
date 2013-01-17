@@ -1,0 +1,19 @@
+%BChanServ UOP%B maintains the user list for a channel.
+
+Syntax: %BUOP%B %U#channel%U %BADD%B <%Unick%U>
+        %BUOP%B %U#channel%U %BDEL%B <%Unick%U>
+        %BUOP%B %U#channel%U %BLIST%B [%Umask%U]
+        %BUOP%B %U#channel%U %BWIPE%B
+
+The %BUOP ADD%B command adds the given nickname to the list.
+If the target has SET AUTH on, a demotions is handled by
+deleting the target's access, so they may accept the demotion,
+or no access at all.
+
+The %BUOP DEL%B command removes the given nick from the list.
+
+The %BUOP LIST%B command displays the list.
+if a mask is given, only those entries matching the mask are
+displayed.
+
+The %BUOP WIPE%B command removes all entries from the list.

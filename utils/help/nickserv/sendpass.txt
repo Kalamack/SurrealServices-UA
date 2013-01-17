@@ -1,0 +1,8 @@
+%BNickServ SENDPASS%B sends the password (or an authentication
+code) to the email-address that the target nick is registered
+with.
+
+As currently implemented, this command is only available to
+Network Staff.
+
+Syntax: %BSENDPASS%B %Utarget%U

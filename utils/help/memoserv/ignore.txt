@@ -1,0 +1,22 @@
+%BMemoServ IGNORE%B gives you the ability to manage a
+permanent MemoServ ignore list with this command. All
+nicknames added to your ignore list must be registered. If a
+nickname on your ignore list tries to send you a memo, the
+ignored person will be notified that they are on your ignore
+list and you do not wish to receive any memos from them.
+
+Syntax: %BIGNORE%B <%UADD|DEL|LIST%U> [<%Unick%U>]
+
+This is a good way to avoid memos from people who spam you.
+They can get around an ignore by registering a different
+nickname, but if people do so just to continue spamming, you
+can report them to networks staff.
+
+MemoServ abuse is uncommon since it requires that the person
+register a nick to do it, and thus leaves a record of who
+was causing problems.
+
+Examples:
+/msg memoserv ignore add benny
+/msg memoserv ignore del Dainera
+/msg memoserv ignore list

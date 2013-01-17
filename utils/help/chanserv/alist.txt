@@ -1,0 +1,4 @@
+%BChanServ ALIST%B displays a full listing of all users,
+optionally filtered, that have access to a channel.
+
+Syntax: %BALIST%B %U#channel%U [%Umask%U]

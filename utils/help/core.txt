@@ -1,0 +1,6 @@
+Commands:
+  RAW       Send a command in the raw. Must be Server Protocol Format.
+            Requires Services Rank: Services Root or IRCd Rank: NetAdmin.
+  LSMOD     Lists all modules loaded.
+  SHUTDOWN  Shuts down the services system.
+            Requires Services Rank: Services Admin or IRCd Rank: Server Admin.

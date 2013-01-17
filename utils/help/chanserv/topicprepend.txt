@@ -1,0 +1,5 @@
+%BChanServ TOPICAPPEND%B prepends a phrase to the current topic, or sets the topic if no topic is set yet.
+
+Syntax: %BTOPICPREPEND%B %U#channel%U <message>
+Examples: /cs TOPICPREPEND #erry COLORSS!!!
+-!- Eustace has changed the topic of #erry to: COLORSS!!! | SLINKIES | COOKIES!

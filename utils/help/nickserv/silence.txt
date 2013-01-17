@@ -1,0 +1,23 @@
+%BNickServ SILENCE%B allows you to view and modify your NickServ silence
+list.  Users on your silence list will not be able to send you private
+messages.
+
+Syntax: %BSILENCE ADD%B <%Unick!ident@host%U> [%U+expiry%U] [%Ucomment%U]
+        %BSILENCE ADD%B <%Unick%U> [%U+expiry%U] [%Ucomment%U]
+        %BSILENCE DEL%B <%Unick!ident@host%U>
+        %BSILENCE LIST%B
+
+The %BSILENCE ADD%B command adds a nick or hostmask to your silence list.
+Expiry and comment are both optional.
+
+The %BSILENCE DEL%B command removes a hostmask from your silence list.
+
+The %BSILENCE LIST%B command displays your silence list.
+
+%BExamples:%B
+  /ns silence add erry +24h
+  /ns silence del 3
+  /ns silence add candyland101 +365d
+
+%BCAVEATS:%B You cannot have more than 32 silence entries.
+Use of an appropriate expiration is highly recommended.

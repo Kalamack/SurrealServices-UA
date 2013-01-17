@@ -1,0 +1,26 @@
+MemoServ is a utility allowing IRC users to send short
+messages to other IRC users, whether they are online at
+the time or not. Both sender and recipient must have
+their nicknames registered with NickServ in order to
+send a memo.
+
+MemoServ's commands include:
+
+Core Commands:
+
+SEND    - Send a memo to a nick/channel
+CSEND   - Send a channel memo to higher access levels
+LIST    - List all of your memos
+READ    - Read a memo
+DEL     - Set Delete flag for a memo (or all memos)
+UNDEL   - Remove the delete flag for a memo (or all memos)
+UNSEND  - Retrieve a memo sent to a user
+PURGE   - Erase all marked memos as deleted
+FORWARD - Have memos forwarded to another registered nick
+MARK    - MARK a memo that you do not want to expire
+UNMARK  - UNMARK a memo that you do not want to expire
+NEWS    - Recent news and information about network
+SET     - Set options related to memos
+
+Type /msg MemoServ HELP command for help on any of the
+above commands.

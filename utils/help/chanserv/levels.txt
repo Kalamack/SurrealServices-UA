@@ -1,0 +1,21 @@
+%BChanServ LEVELS%B allows you to adjust the minimum access levels
+required to do certain commands.
+
+Syntax: %BLEVELS%B %U#channel%U %BSET%B <%Ucommand%U> <%Ulevel%U>
+        %BLEVELS%B %U#channel%U %BRESET%B <%Ucommand%U>
+        %BLEVELS%B %U#channel%U %BLIST%B
+        %BLEVELS%B %U#channel%U %BCLEAR%B
+
+The %BLEVELS SET%B command sets the required level for a command.
+
+The %BLEVELS RESET%B command sets the level of a command back to
+the default setting.
+
+The %BLEVELS LIST%B command displays a list of possible commands
+and their current level settings.
+
+The %BLEVELS CLEAR%B command sets all levels back to the default
+settings.
+
+For a list of the different LEVELS settings and what they allow, type:
+%B/cs help levels set%B

@@ -1,0 +1,5 @@
+%BNickServ SET NOMEMO%B blocks incoming memos for your current
+nick. This does not prevent you from sending memos, it will
+only block receieving memos to you from others.
+
+Syntax: %BSET%B [%Unick%U] %BNOMEMO%B <%UON|OFF%U>

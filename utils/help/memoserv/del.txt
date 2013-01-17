@@ -1,0 +1,6 @@
+%BMemoServ DEL%B deletes a memo, a series of memos, or all memos.
+
+Syntax: %BDEL%B <%Unumber%U>
+        %BDEL%B <%Unumber1-number2%U>
+        %BDEL%B <%Unumber1..number2%U>
+        %BDEL ALL%B

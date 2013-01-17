@@ -1,0 +1,11 @@
+Commands:
+  !b             !ban
+  !k             !kick
+  !kb            !kickban
+  !kbm           !kickbanmask
+  !km            !kickmask
+  !kbmask        !kickbanmask
+  !d             !dice
+  !m             !mode
+  !blist         !banlist
+  !t             !topic

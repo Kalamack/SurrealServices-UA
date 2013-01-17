@@ -1,0 +1,5 @@
+%BChanServ VOICE%B allows you to set channel-voice mode on either
+yourself or on other people in a channel.
+
+Syntax: %BVOICE%B %U#channel%U [%Unick%U [%Unick%U ...]]
+        %BVOICE%B %U#channel%U [%Uchannel%U [%Uchannel%U]]

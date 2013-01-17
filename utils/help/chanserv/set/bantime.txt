@@ -1,0 +1,6 @@
+%BChanServ SET BANTIME%B sets the default ban time for /cs (kick)ban and /cs tempban.
+Default is 0 (permanent unless manually removed)
+Examples:
+/cs set #pokemonlake bantime +24h
+/cs set #pokemondeluge bantime +12h
+Syntax: %BSET%B %U#channel%U %BBANTIME%B +<%Utime%U>

@@ -1,0 +1,7 @@
+%BChanServ SET FREEZE%B sets whether the given channel
+will be suspended, preventing users in that channel
+from being granted their access.
+
+Syntax: %BSET%B %U#channel%U %BFREEZE%B <%UON/OFF%U>
+
+Requires SERVOP.

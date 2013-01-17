@@ -1,0 +1,29 @@
+%BChanServ AKICK%B maintains the AutoKick list for a channel.
+If a user on the AutoKick list attempts to join the channel,
+ChanServ will ban that user from the channel, then kick the user.
+ 
+Syntax: %BAKICK%B %U#channel%U %BADD%B <%Unick/mask%U> [%Ureason%U]
+        %BAKICK%B %U#channel%U %BDEL%B <%Unick/mask/list%U>
+        %BAKICK%B %U#channel%U %BLIST%B
+ 
+The %BAKICK ADD%B command adds the given nick or hostmask to
+the AutoKick list.
+#If a %Ureason%U is given with the
+#command, that reason will be used when the user is kicked;
+#if not, the default reason is "You have been banned from the
+#channel".
+
+The %BAKICK DEL%B command removes the given nick, mask or
+sequence of numbered-entries from the AutoKick list.  It does
+not, however, remove any bans placed by an AutoKick; those must
+be removed manually.
+
+The %BAKICK LIST%B command displays the AutoKick list.
+#or
+#optionally only those AutoKick entries which match the given
+#mask.
+
+The reason is used when kicking and is visible in AKICK LIST. If
+the reason contains a '|' character everything after it does not
+appear in bans placed by an AutoKick; but does appear in AKICK
+LIST.

@@ -1,0 +1,5 @@
+%BChanServ LIST%B Lists all registered channels matching the given mask.
+(Channels with the PRIVATE option set are not listed, of
+course.)
+
+Syntax: %BLIST%B <%Umask%U>

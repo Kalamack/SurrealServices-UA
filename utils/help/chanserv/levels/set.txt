@@ -1,0 +1,37 @@
+%U LEVEL:        Allows you to:                            
+  AccChange     Modify channel access lists.
+  AccList       View channel access lists.
+  AKICK         Modify the AKICK list.
+  AKickEnforce  Re-check and enforce the akick list.
+  AKickList     View the AKICK list.
+  BadWords      *
+  BAN           Use ChanServ/BotServ to ban users.
+  BotAssign     Assign the BotServ bot.
+  BotSay        Use BotServ SAY and BotServ ACT.
+  CLEAR         Use ChanServ CLEAR commands.
+  DICE          Allowed to use the !dice trigger.
+  GETKEY        Use ChanServ GETKEY.
+  Greet         Will receive a Greeting upon join
+  HALFOP        Use ChanServ/BotServ to half-op (+h) users.
+  INFO          Use ChanServ INFO.
+  INVITE        Use ChanServ/BotServ to invite users.
+  InviteSelf    Use ChanServ/BotServ to invite oneself.
+  Join          May join the channel.
+  KICK          Use ChanServ/BotServ to kick users.
+  LEVELS        Modify the LEVELS list.
+  LevelsList    View the LEVELS list.
+  Memo          Send channel memos.
+  MemoAccChange Will receive memos about Access List Changes
+  NoKick        *
+  OP            Use ChanServ/BotServ to op (+o) users.
+  PROTECT       Use ChanServ/BotServ to protect (+a) users.
+  SET           Modify ChanServ settings.
+  SetTopic      Use the /topic command to change the topic.
+  TOPIC         *
+  UNBAN         Unban others
+  UPDOWN        Can use UP or DOWN on other people.
+  UnbanSelf     Unban self
+  VOICE         Use ChanServ/BotServ to voice (+v) users.
+  WELCOME       Modify the ChanServ WELCOME list.
+
+* Not yet implemented.

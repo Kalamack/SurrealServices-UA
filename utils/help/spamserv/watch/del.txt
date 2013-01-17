@@ -1,0 +1,5 @@
+%BSpamServ WATCH DEL%B removes a channel from the watch
+list, causing the SpamServ pseudoclient to part the
+channel.
+
+Syntax: %BWATCH DEL%B %U#channel%U

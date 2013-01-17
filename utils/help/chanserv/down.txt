@@ -1,0 +1,11 @@
+%BChanServ DOWN%B has two syntaxes.
+
+First form gives you the highest channel op you are allowed
+in the channels you specify.  If you specify no channels, all
+channels will be affected.
+
+Second form removes all channel ops from the nick[s] in the
+channel you specify, if you have sufficient rank.
+
+Syntax: %BDOWN%B [%Uchannel%U [%Uchannel%U ...]]
+Syntax: %BDOWN%B %Uchannel%U %Unick%U [[%Unick%U] ...]

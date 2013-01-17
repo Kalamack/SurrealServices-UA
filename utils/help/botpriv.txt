@@ -1,0 +1,5 @@
+Commands:
+  JOIN  Force bot to join a channel.
+  PART  Force bot to leave a channel.
+  SAY   Make bot say a message.
+  ACT   Make bot do an action.

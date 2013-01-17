@@ -1,0 +1,4 @@
+%BChanServ KICKBAN%B allows you to kick and ban a user from
+a channel.
+
+Syntax: %BKICKBAN%B %U#channel%U <%Unick%U> [%Ureason%U]

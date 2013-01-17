@@ -1,0 +1,9 @@
+%BOperServ SVSKILL%B KILLs a user off the network with a custom
+QUIT message.
+
+This command is limited to %BServices Roots%B, as it is
+%Uhighly%U abuseable.
+
+Syntax: %BSVSKILL%B <%Utarget%U> <%Ureason here%U>
+
+Example: SVSKILL Alucard Quit: I am the very model of a modern major general.

@@ -1,0 +1,4 @@
+%BSpamServ SAVE%B saves the list of watched channels
+as well as the current configuration.
+
+Syntax: %BSAVE%B

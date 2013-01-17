@@ -1,0 +1,5 @@
+%BNickServ SET NEVEROP%B Prevents services from giving you
+channel status upon channels. You may still use the UP command
+to gain your status.
+ 
+Syntax: %BSET%B [%Unick%U] %BNEVEROP%B <%UON|OFF%U>

@@ -1,0 +1,4 @@
+%BNickServ SET UMODE%B sets the umodes that NickServ will set
+on you when you identify.
+
+Syntax: %BSET%B [%Unick%U] %BUMODE%B <%U+modes-modes|none%U>
